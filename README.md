@@ -89,7 +89,7 @@ npx prisma db push
 ## Cron: what runs, how often, limits
 
 - **Route:** `GET /api/cron/sync-amazon`
-- **Schedule:** `0 */6 * * *` (every 6 hours) in `vercel.json` — adjust as needed.
+- **Schedule:** `0 9 * * *` (once daily at **09:00 UTC**) in `vercel.json` — **Vercel Hobby allows at most one cron run per day**; use Pro if you need more frequent runs (e.g. every 6 hours).
 - **Auth:** If `CRON_SECRET` is set, requests must include `Authorization: Bearer <CRON_SECRET>` (Vercel Cron does this automatically when the var exists).
 - **Behavior:** Loads all Amazon `Product.externalId` (ASIN) values, calls PA-API `GetItems` in batches of 10 when credentials exist, inserts new `Offer` + `PriceHistory` rows and updates images when returned. Logs to `SyncJobLog`.
 - **Failure handling:** Partial errors from PA-API are stored in the log row; HTTP 500 only on thrown exceptions. Without PA-API keys, returns 200 with `{ skipped: true }` so cron does not retry as a hard failure.
