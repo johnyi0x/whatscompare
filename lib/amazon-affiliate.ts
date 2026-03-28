@@ -74,7 +74,8 @@ function isPlaceholderUrl(url: string | null): boolean {
 }
 
 /**
- * Prefer explicit https image URLs (e.g. from PA-API). Otherwise same-origin proxy for Amazon ASIN art.
+ * Only use stored https image URLs from feeds (SerpApi, PA-API). The AsinImage proxy is unreliable in production
+ * and is not used for catalog thumbnails.
  */
 export function resolveProductImageUrl(
   product: {
@@ -88,8 +89,5 @@ export function resolveProductImageUrl(
   if (url && !isPlaceholderUrl(url) && url.startsWith("http")) {
     return url;
   }
-  if (product.merchant.slug === "amazon") {
-    return `/api/amazon-img?asin=${encodeURIComponent(product.externalId)}`;
-  }
-  return url;
+  return null;
 }

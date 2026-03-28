@@ -50,13 +50,13 @@ export function NavDrawer() {
         <div className="fixed inset-0 z-[100] flex justify-end">
           <button
             type="button"
-            className="absolute inset-0 bg-ink/40 backdrop-blur-[2px] dark:bg-black/50"
+            className="absolute inset-0 z-[1] bg-slate-900/45 backdrop-blur-md backdrop-saturate-150 dark:bg-black/55 dark:backdrop-blur-lg"
             aria-label="Close menu"
             onClick={close}
           />
           <nav
             id="site-nav-drawer"
-            className="relative flex h-full w-[min(20rem,88vw)] flex-col border-l border-line bg-surface py-6 shadow-2xl"
+            className="relative z-[2] flex h-full w-[min(20rem,88vw)] flex-col border-l border-white/15 bg-white/88 py-6 shadow-2xl shadow-black/15 ring-1 ring-black/[0.04] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/82 dark:ring-white/[0.06] dark:shadow-black/50"
           >
             <div className="flex items-center justify-between border-b border-line px-5 pb-4">
               <span className="font-display text-lg font-semibold">
@@ -81,7 +81,7 @@ export function NavDrawer() {
                   <Link
                     href={href}
                     onClick={close}
-                    className="block rounded-lg px-4 py-3 text-sm font-medium text-ink transition hover:bg-surface-subtle hover:text-accent"
+                    className="block rounded-xl px-4 py-3 text-sm font-medium text-ink transition hover:bg-slate-900/[0.04] hover:text-accent dark:hover:bg-white/[0.06]"
                   >
                     {label}
                   </Link>

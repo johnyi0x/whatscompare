@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { ProductCard } from "@/components/ProductCard";
+import { ingestedProductWhere } from "@/lib/ingested-products";
 import { prisma } from "@/lib/prisma";
 
 export default async function HomePage() {
   const featured = await prisma.product.findMany({
+    where: ingestedProductWhere,
     take: 8,
     orderBy: { updatedAt: "desc" },
     include: {
@@ -54,9 +56,9 @@ export default async function HomePage() {
         </div>
         {featured.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-line bg-surface-subtle px-4 py-10 text-center text-ink-muted">
-            No products in the database yet. After deploy, the build runs <code className="text-ink">prisma db seed</code>;
-            if this stays empty, check Vercel build logs for seed errors or run{" "}
-            <code className="text-ink">npm run db:seed</code> locally against the same <code className="text-ink">DATABASE_URL</code>.
+            Nothing to show until at least one product is ingested from <strong className="text-ink">SerpApi</strong> or{" "}
+            <strong className="text-ink">Amazon PA-API</strong> (daily cron). Add ASIN stubs with{" "}
+            <code className="text-ink">INGEST_ASINS</code> in seed env, run sync, then listings appear here.
           </p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

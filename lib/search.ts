@@ -1,6 +1,20 @@
+import { Prisma } from "@prisma/client";
+import { ingestedProductWhere } from "./ingested-products";
 import { prisma } from "./prisma";
 
 const DEFAULT_LIMIT = 24;
+
+/** SQL fragment: only products ingested via SerpApi or PA-API (matches `ingestedProductWhere`). */
+const INGESTED_SQL = Prisma.sql`
+  AND (
+    p."serpapiSyncedAt" IS NOT NULL
+    OR p."imageSource" = 'pa_api'
+    OR EXISTS (
+      SELECT 1 FROM "Offer" o
+      WHERE o."productId" = p.id AND o."source" IN ('pa_api', 'serpapi')
+    )
+  )
+`;
 
 /**
  * Hybrid ILIKE + pg_trgm similarity. Requires pg_trgm extension (see migration).
@@ -17,10 +31,13 @@ export async function searchProductIds(query: string, limit = DEFAULT_LIMIT): Pr
     SELECT p.id
     FROM "Product" p
     WHERE
-      p.title ILIKE ${like} ESCAPE '\'
-      OR COALESCE(p.brand, '') ILIKE ${like} ESCAPE '\'
-      OR p.title % ${q}
-      OR COALESCE(p.brand, '') % ${q}
+      (
+        p.title ILIKE ${like} ESCAPE '\'
+        OR COALESCE(p.brand, '') ILIKE ${like} ESCAPE '\'
+        OR p.title % ${q}
+        OR COALESCE(p.brand, '') % ${q}
+      )
+      ${INGESTED_SQL}
     ORDER BY
       GREATEST(
         similarity(p.title, ${q}),
@@ -38,7 +55,7 @@ export async function searchProductsWithOffers(query: string, limit = DEFAULT_LI
   if (ids.length === 0) return [];
 
   const products = await prisma.product.findMany({
-    where: { id: { in: ids } },
+    where: { id: { in: ids }, ...ingestedProductWhere },
     include: {
       merchant: true,
       offers: {

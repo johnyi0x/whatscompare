@@ -58,7 +58,7 @@ npx prisma migrate deploy
 npm run db:seed
 ```
 
-**Vercel:** `npm run build` already runs migrate + seed, so production gets sample products on each deploy (seed uses upserts; safe to repeat).
+**Vercel:** `npm run build` already runs migrate + seed. Seed keeps the **Amazon merchant** and optional **ASIN stubs** from `INGEST_ASINS` (for SerpApi/PA-API cron)—it no longer loads demo products with fake prices. One-time wipe: set `RESET_CATALOG_ON_SEED=1` for a single deploy, then remove it.
 
 For local iterative schema tweaks without migration files:
 

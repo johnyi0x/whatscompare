@@ -3,19 +3,20 @@ import { notFound } from "next/navigation";
 import { ProductImage } from "@/components/ProductImage";
 import { buildAmazonProductUrl, getPartnerTagOrPlaceholder, resolveProductImageUrl } from "@/lib/amazon-affiliate";
 import { formatPriceDisclaimer } from "@/lib/format-price";
+import { productDetailWhere } from "@/lib/ingested-products";
 import { prisma } from "@/lib/prisma";
 
 type Props = { params: { slug: string } };
 
 export async function generateMetadata({ params }: Props) {
-  const product = await prisma.product.findUnique({ where: { slug: params.slug } });
+  const product = await prisma.product.findFirst({ where: productDetailWhere(params.slug) });
   if (!product) return { title: "Deal not found" };
   return { title: product.title };
 }
 
 export default async function DealDetailPage({ params }: Props) {
-  const product = await prisma.product.findUnique({
-    where: { slug: params.slug },
+  const product = await prisma.product.findFirst({
+    where: productDetailWhere(params.slug),
     include: {
       merchant: true,
       offers: { orderBy: { fetchedAt: "desc" }, take: 1 },

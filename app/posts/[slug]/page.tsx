@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import { ProductImage } from "@/components/ProductImage";
 import { buildAmazonProductUrl, getPartnerTagOrPlaceholder, resolveProductImageUrl } from "@/lib/amazon-affiliate";
 import { formatPriceDisclaimer } from "@/lib/format-price";
+import { ingestedProductWhere } from "@/lib/ingested-products";
 import { prisma } from "@/lib/prisma";
 
 type Props = { params: { slug: string } };
@@ -19,6 +20,7 @@ export default async function PostDetailPage({ params }: Props) {
     where: { slug: params.slug },
     include: {
       products: {
+        where: { product: ingestedProductWhere },
         orderBy: { sortOrder: "asc" },
         include: {
           product: {

@@ -58,9 +58,9 @@ export default function AboutPage() {
         <ol className="list-inside list-decimal space-y-2">
           <li>
             <strong className="text-ink">Seed (every production build):</strong>{" "}
-            <code className="text-ink">prisma db seed</code> upserts a small curated set of real ASINs with{" "}
-            <strong className="text-ink">reference prices</strong> (not live). That’s why prices can drift from Lightning
-            Deals / sales until PA-API runs.
+            <code className="text-ink">prisma db seed</code> ensures the Amazon merchant exists. Optional{" "}
+            <code className="text-ink">INGEST_ASINS</code> creates <em>stub</em> rows (no listing until SerpApi or PA-API
+            succeeds). The homepage and search only show products after a successful API ingest.
           </li>
           <li>
             <strong className="text-ink">Images:</strong> the UI loads{" "}
