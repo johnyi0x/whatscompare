@@ -41,7 +41,7 @@ export default async function PostDetailPage({ params }: Props) {
   return (
     <article className="space-y-10">
       <header className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-accent">Deal roundup</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-accent">Deal blog post</p>
         <h1 className="font-display text-4xl font-semibold text-ink">{post.title}</h1>
         {post.publishedAt ? (
           <p className="text-sm text-ink-muted">

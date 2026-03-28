@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
 import { AffiliateDisclosure } from "@/components/AffiliateDisclosure";
+import { BrandWordmark } from "@/components/BrandWordmark";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -22,12 +23,15 @@ const display = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: "WhatsCompare — curated product deals",
-    template: "%s · WhatsCompare",
+    default: "whatscompare — curated product deals",
+    template: "%s · whatscompare",
   },
   description:
-    "Search curated Amazon deals from our database. Editorial roundups and transparent affiliate disclosures.",
+    "Search curated Amazon deals from our database. Editorial posts and transparent affiliate disclosures.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  icons: {
+    icon: [{ url: "/icon", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -41,9 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="mx-auto max-w-5xl space-y-4 px-4">
               <AffiliateDisclosure />
               <p className="text-xs text-ink-muted">
-                © {new Date().getFullYear()}{" "}
-                <span className="text-ink">Whats</span>
-                <span className="text-compare">Compare</span>. Not affiliated with Amazon. Amazon and related marks are
+                © {new Date().getFullYear()} <BrandWordmark />. Not affiliated with Amazon. Amazon and related marks are
                 trademarks of Amazon.com, Inc. or its affiliates.
               </p>
             </div>

@@ -14,6 +14,12 @@ export default async function HomePage() {
     },
   });
 
+  const recentPosts = await prisma.post.findMany({
+    where: { publishedAt: { not: null } },
+    orderBy: { publishedAt: "desc" },
+    take: 4,
+  });
+
   return (
     <div className="space-y-14">
       <section className="space-y-6 text-center">
@@ -36,7 +42,7 @@ export default async function HomePage() {
             href="/posts"
             className="rounded-lg border border-line bg-surface px-6 py-2.5 text-sm font-medium text-ink transition hover:border-accent"
           >
-            Deal write-ups
+            Deal blog posts
           </Link>
           <Link
             href="/about"
@@ -56,9 +62,10 @@ export default async function HomePage() {
         </div>
         {featured.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-line bg-surface-subtle px-4 py-10 text-center text-ink-muted">
-            No ingest-visible products yet. With <code className="text-ink">SERPAPI_API_KEY</code> on Vercel,{" "}
-            <code className="text-ink">prisma db seed</code> during build tries SerpApi for up to five stubs; otherwise
-            wait for the daily cron or check build logs for SerpApi errors.
+            No ingest-visible products yet. On Vercel, add <code className="text-ink">SERPAPI_API_KEY</code> under{" "}
+            <strong className="text-ink">Environment Variables → include it for “Build”</strong> (not only Production) so{" "}
+            <code className="text-ink">prisma db seed</code> can call SerpApi during deploy. Then check the build log for
+            SerpApi errors, or wait for the daily cron.
           </p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -66,6 +73,42 @@ export default async function HomePage() {
               <ProductCard key={p.id} product={p} />
             ))}
           </div>
+        )}
+      </section>
+
+      <section className="space-y-5">
+        <div className="flex items-end justify-between gap-4 border-b border-line pb-3">
+          <h2 className="font-display text-2xl font-semibold text-ink">Deal blog posts</h2>
+          <Link href="/posts" className="text-sm font-medium text-accent hover:underline">
+            View all
+          </Link>
+        </div>
+        {recentPosts.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-line bg-surface-subtle px-4 py-8 text-center text-sm text-ink-muted">
+            Editorial posts with Amazon affiliate context will appear here—another way to surface referral links besides
+            the product grid.
+          </p>
+        ) : (
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {recentPosts.map((post) => (
+              <li key={post.id}>
+                <Link
+                  href={`/posts/${post.slug}`}
+                  className="block h-full rounded-2xl border border-line bg-surface p-5 shadow-sleek transition hover:border-accent/40 dark:shadow-sleek-dark"
+                >
+                  <h3 className="font-display text-lg font-semibold text-ink">{post.title}</h3>
+                  {post.excerpt ? (
+                    <p className="mt-2 line-clamp-2 text-sm text-ink-muted">{post.excerpt}</p>
+                  ) : null}
+                  {post.publishedAt ? (
+                    <p className="mt-3 text-xs text-ink-muted">
+                      {post.publishedAt.toLocaleDateString("en-US", { dateStyle: "medium" })}
+                    </p>
+                  ) : null}
+                </Link>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </div>

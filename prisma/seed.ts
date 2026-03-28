@@ -35,6 +35,10 @@ function asinsForStubSeed(envParsed: string[]): string[] {
  * With SERPAPI_API_KEY on Vercel build, seed calls SerpApi for up to 5 never-synced stubs when the catalog has no ingest-visible products yet.
  */
 async function main() {
+  console.log(
+    `[seed] SERPAPI_API_KEY available during this run: ${Boolean(process.env.SERPAPI_API_KEY?.trim())} (Vercel: enable for Build, not only Production).`
+  );
+
   if (process.env.RESET_CATALOG_ON_SEED === "1") {
     await prisma.postProduct.deleteMany();
     await prisma.priceHistory.deleteMany();
@@ -48,6 +52,45 @@ async function main() {
     where: { slug: "amazon" },
     create: { slug: "amazon", name: "Amazon" },
     update: {},
+  });
+
+  await prisma.post.upsert({
+    where: { slug: "how-affiliate-links-work-here" },
+    create: {
+      slug: "how-affiliate-links-work-here",
+      title: "How affiliate links work on whatscompare",
+      excerpt:
+        "We may earn from qualifying Amazon purchases. Here is how we present deals and what to double-check before you buy.",
+      publishedAt: new Date(),
+      body: `## Disclosure
+
+whatscompare uses Amazon Associates links. If you buy through our links, we may earn a commission at no extra cost to you.
+
+## Prices and availability
+
+Amazon changes prices, coupons, and stock often. Anything we show from our database is a **snapshot**—always confirm on Amazon before checkout.
+
+## Product grid vs blog posts
+
+You will see deals in the searchable catalog and in **deal blog posts**. Both are ways we highlight products we think are worth a look; the same disclosure applies.`,
+    },
+    update: {
+      title: "How affiliate links work on whatscompare",
+      excerpt:
+        "We may earn from qualifying Amazon purchases. Here is how we present deals and what to double-check before you buy.",
+      publishedAt: new Date(),
+      body: `## Disclosure
+
+whatscompare uses Amazon Associates links. If you buy through our links, we may earn a commission at no extra cost to you.
+
+## Prices and availability
+
+Amazon changes prices, coupons, and stock often. Anything we show from our database is a **snapshot**—always confirm on Amazon before checkout.
+
+## Product grid vs blog posts
+
+You will see deals in the searchable catalog and in **deal blog posts**. Both are ways we highlight products we think are worth a look; the same disclosure applies.`,
+    },
   });
 
   const stubAsins = asinsForStubSeed(parseAsinList(process.env.INGEST_ASINS));
@@ -80,7 +123,10 @@ async function main() {
 
   const boot = await bootstrapSerpApiIfEmpty(5);
   if (!boot.skipped) {
-    console.log(`SerpApi bootstrap: updated ${boot.updated} product(s).`, boot.errors.length ? boot.errors : "");
+    console.log(`SerpApi bootstrap: updated ${boot.updated} product(s).`);
+    if (boot.errors.length) {
+      console.error("[seed] SerpApi bootstrap errors:", boot.errors.join(" | "));
+    }
   } else if (boot.reason === "no_api_key") {
     console.log("SerpApi bootstrap skipped: SERPAPI_API_KEY not set.");
   } else if (boot.reason === "already_ingested") {

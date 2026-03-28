@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { BrandWordmark } from "./BrandWordmark";
 
 const links = [
   { href: "/search", label: "Browse catalog" },
-  { href: "/posts", label: "Deal write-ups" },
+  { href: "/posts", label: "Deal blog posts" },
   { href: "/about", label: "About" },
-  { href: "/compare", label: "Compare (soon)" },
+  { href: "/compare", label: "compare (soon)" },
 ];
 
 export function NavDrawer() {
@@ -51,8 +52,7 @@ export function NavDrawer() {
       >
         <div className="flex items-center justify-between border-b border-line px-5 pb-4">
           <span className="font-display text-lg font-semibold">
-            <span className="text-ink">Whats</span>
-            <span className="text-compare">Compare</span>
+            <BrandWordmark />
           </span>
           <button
             type="button"

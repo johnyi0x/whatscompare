@@ -4,7 +4,7 @@ export function AffiliateDisclosure({ className = "" }: { className?: string }) 
       className={`rounded-xl border border-line bg-surface-subtle px-4 py-3 text-sm leading-relaxed text-ink-muted ${className}`}
       role="note"
     >
-      <strong className="font-medium text-ink">Affiliate disclosure.</strong> WhatsCompare earns from qualifying
+      <strong className="font-medium text-ink">Affiliate disclosure.</strong> whatscompare earns from qualifying
       purchases through links to Amazon and other merchants we cover. You pay the same price; we may receive a
       commission. Program rules for your locale apply—see{" "}
       <a

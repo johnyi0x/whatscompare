@@ -1,4 +1,4 @@
-# WhatsCompare
+# whatscompare
 
 Next.js 14 (App Router) product deal finder for **whatscompare.com**: Postgres-backed catalog, search (pg_trgm + similarity), deal detail pages, editorial “posts” with embedded products, Amazon affiliate links, optional **PA-API 5 / Creators API** sync when eligible, and optional **SerpApi Amazon Product** ingest (paid third party) when PA-API is unavailable—all via Vercel Cron; **pages never call those APIs**.
 
@@ -117,4 +117,4 @@ Point DNS to Vercel and set the project domain. Retire WordPress when this app i
 
 ## Related project
 
-Flight deals remain in **`trip-finder`** / FlightDealio; this repo is scoped to WhatsCompare only.
+Flight deals remain in **`trip-finder`** / FlightDealio; this repo is scoped to whatscompare only.

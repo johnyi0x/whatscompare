@@ -6,7 +6,7 @@ export default function AboutPage() {
   return (
     <article className="mx-auto max-w-2xl space-y-10">
       <header className="space-y-2">
-        <h1 className="font-display text-4xl font-semibold text-ink">How WhatsCompare works</h1>
+        <h1 className="font-display text-4xl font-semibold text-ink">How whatscompare works</h1>
         <p className="text-ink-muted">
           Product data flow, APIs, and intervals—framed like a market data stack (similar idea to indexing exchange
           feeds), but for retail offers.
@@ -63,10 +63,12 @@ export default function AboutPage() {
             succeeds). The homepage and search only show products after a successful API ingest.
           </li>
           <li>
-            <strong className="text-ink">Images:</strong> the UI loads{" "}
-            <code className="text-ink">/api/amazon-img?asin=…</code>, which fetches Amazon’s AsinImage JPEG on the{" "}
-            <strong className="text-ink">server</strong> (browsers often block the widget URL directly). If Amazon returns
-            403/404, the image fails until ASIN/tag is fixed.
+            <strong className="text-ink">Images:</strong> product cards use <strong className="text-ink">HTTPS image URLs</strong>{" "}
+            stored after SerpApi or PA-API ingest—not live HTML scraping.
+          </li>
+          <li>
+            <strong className="text-ink">Deal blog posts:</strong> markdown in <code className="text-ink">Post</code> rows;
+            another surface for affiliate context besides the product grid.
           </li>
           <li>
             <strong className="text-ink">PA-API / Creators path (optional):</strong> the same daily cron can call Amazon’s
@@ -83,11 +85,12 @@ export default function AboutPage() {
           </li>
           <li>
             <strong className="text-ink">SerpApi refresh (optional, paid 3rd party):</strong> if you are not yet eligible for
-            PA-API, you can set <code className="text-ink">SERPAPI_API_KEY</code>. The cron refreshes only a{" "}
-            <em>small capped batch</em> of stale Amazon products per run (TTL + max per run), writes{" "}
-            <code className="text-ink">source=serpapi</code>, and sets <code className="text-ink">serpapiSyncedAt</code> so we
-            do not call the API on every visitor. Product pages still read <strong className="text-ink">only Postgres</strong>.
-            Not an official Amazon feed—verify prices on Amazon before purchase.
+            PA-API, set <code className="text-ink">SERPAPI_API_KEY</code>. On Vercel, expose that variable to{" "}
+            <strong className="text-ink">Build</strong> as well as Production so deploy-time seed can bootstrap. The cron
+            refreshes only a <em>small capped batch</em> of stale Amazon products per run, writes{" "}
+            <code className="text-ink">source=serpapi</code> when a price is available, and sets{" "}
+            <code className="text-ink">serpapiSyncedAt</code> so pages never call SerpApi per view. Not an official Amazon
+            feed—verify on Amazon before purchase.
           </li>
         </ol>
       </section>

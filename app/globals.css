@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Pastel natural green + ink text. "Whats" uses --color-ink; "Compare" uses --color-compare */
+/* Pastel mint + ink. Wordmark: whats (ink) + compare (--color-compare); site name stays lowercase. */
 :root {
   --color-ink: #0f172a;
   --color-ink-muted: #64748b;

@@ -19,10 +19,32 @@ type ProductResults = {
   title?: string;
   description?: string;
   thumbnails?: string[];
+  /** SerpApi may omit this; fall back to string `price`. */
   extracted_price?: number;
   extracted_old_price?: number;
+  price?: string;
+  old_price?: string;
   badges?: string[];
 };
+
+function parseMoney(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const n = parseFloat(value.replace(/[^0-9.]/g, ""));
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+function serpApiListPrice(pr: ProductResults): number | null {
+  return parseMoney(pr.extracted_old_price) ?? parseMoney(pr.old_price);
+}
+
+function serpApiUnitPrice(pr: ProductResults): number | null {
+  return parseMoney(pr.extracted_price) ?? parseMoney(pr.price);
+}
 
 type SerpApiResponse = {
   error?: string;
@@ -81,53 +103,55 @@ async function persistSerpApiResult(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const asin = product.externalId;
   const thumb = pr.thumbnails?.[0] ?? null;
-  const price = pr.extracted_price;
-  if (price == null || Number.isNaN(price)) {
-    return { ok: false, error: "missing extracted_price" };
-  }
-
-  const listPrice = pr.extracted_old_price ?? null;
+  const price = serpApiUnitPrice(pr);
+  const listPrice = serpApiListPrice(pr);
   const dealParts = (pr.badges ?? []).slice(0, 2);
   const dealLabel = dealParts.length ? dealParts.join(" · ") : null;
   const affiliateUrl = buildAmazonProductUrl(asin, { partnerTag: tag });
   const now = new Date();
 
+  const productUpdate = prisma.product.update({
+    where: { id: product.id },
+    data: {
+      title: pr.title ?? product.title,
+      description: pr.description ?? product.description,
+      imageUrl: thumb ?? product.imageUrl,
+      imageSource: "serpapi",
+      serpapiSyncedAt: now,
+    },
+  });
+
   try {
-    await prisma.$transaction([
-      prisma.product.update({
-        where: { id: product.id },
-        data: {
-          title: pr.title ?? product.title,
-          description: pr.description ?? product.description,
-          imageUrl: thumb ?? product.imageUrl,
-          imageSource: thumb ? "serpapi" : product.imageSource,
-          serpapiSyncedAt: now,
-        },
-      }),
-      prisma.offer.create({
-        data: {
-          productId: product.id,
-          merchantId: product.merchantId,
-          priceAmount: price,
-          currency: "USD",
-          listPriceAmount: listPrice,
-          dealLabel,
-          affiliateUrl,
-          fetchedAt: now,
-          source: "serpapi",
-          availabilityNote: "Price from SerpApi Amazon Product engine; verify on Amazon before purchase.",
-          lastSyncedAt: now,
-        },
-      }),
-      prisma.priceHistory.create({
-        data: {
-          productId: product.id,
-          priceAmount: price,
-          currency: "USD",
-          source: "serpapi",
-        },
-      }),
-    ]);
+    if (price != null) {
+      await prisma.$transaction([
+        productUpdate,
+        prisma.offer.create({
+          data: {
+            productId: product.id,
+            merchantId: product.merchantId,
+            priceAmount: price,
+            currency: "USD",
+            listPriceAmount: listPrice,
+            dealLabel,
+            affiliateUrl,
+            fetchedAt: now,
+            source: "serpapi",
+            availabilityNote: "Price from SerpApi Amazon Product engine; verify on Amazon before purchase.",
+            lastSyncedAt: now,
+          },
+        }),
+        prisma.priceHistory.create({
+          data: {
+            productId: product.id,
+            priceAmount: price,
+            currency: "USD",
+            source: "serpapi",
+          },
+        }),
+      ]);
+    } else {
+      await productUpdate;
+    }
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };

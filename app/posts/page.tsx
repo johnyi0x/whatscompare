@@ -10,9 +10,9 @@ export default async function PostsIndexPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-display text-3xl font-semibold text-ink">Deal write-ups</h1>
+        <h1 className="font-display text-3xl font-semibold text-ink">Deal blog posts</h1>
         <p className="mt-2 max-w-2xl text-ink-muted">
-          Editorial posts that embed curated products—WordPress-free, stored as markdown in Postgres.
+          Editorial posts that embed curated products—stored as markdown in Postgres, with clear affiliate context.
         </p>
       </div>
       <ul className="space-y-4">
@@ -34,7 +34,7 @@ export default async function PostsIndexPage() {
         ))}
       </ul>
       {posts.length === 0 ? (
-        <p className="text-ink-muted">No published posts yet. Run the seed script to add a sample roundup.</p>
+        <p className="text-ink-muted">No published posts yet. Deploy runs seed—add posts in the database or extend seed.</p>
       ) : null}
     </div>
   );
