@@ -19,7 +19,7 @@ export default async function SearchPage({ searchParams }: Props) {
       </div>
 
       {q && products.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-ink/20 bg-surface-subtle px-4 py-8 text-center text-ink-muted">
+        <p className="rounded-lg border border-dashed border-line bg-surface-subtle px-4 py-8 text-center text-ink-muted">
           No matches yet. Try another keyword or seed more products.
         </p>
       ) : null}

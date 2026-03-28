@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
-import { buildAmazonProductUrl, getPartnerTagOrPlaceholder } from "@/lib/amazon-affiliate";
+import { buildAmazonProductUrl, getPartnerTagOrPlaceholder, resolveProductImageUrl } from "@/lib/amazon-affiliate";
 import { formatPriceDisclaimer } from "@/lib/format-price";
 import { prisma } from "@/lib/prisma";
 
@@ -48,7 +48,7 @@ export default async function PostDetailPage({ params }: Props) {
         ) : null}
       </header>
 
-      <div className="prose prose-neutral max-w-none prose-headings:font-display prose-a:text-accent">
+      <div className="prose prose-neutral max-w-none prose-headings:font-display prose-a:text-accent dark:prose-invert">
         <ReactMarkdown>{post.body}</ReactMarkdown>
       </div>
 
@@ -63,6 +63,8 @@ export default async function PostDetailPage({ params }: Props) {
                 (product.merchant.slug === "amazon"
                   ? buildAmazonProductUrl(product.externalId, { partnerTag: tag })
                   : "#");
+              const thumb = resolveProductImageUrl(product, tag);
+              const thumbAmazon = thumb?.includes("amazon-adsystem.com");
               const priceText = offer
                 ? new Intl.NumberFormat("en-US", { style: "currency", currency: offer.currency }).format(
                     Number(offer.priceAmount)
@@ -72,11 +74,21 @@ export default async function PostDetailPage({ params }: Props) {
               return (
                 <div
                   key={product.id}
-                  className="flex gap-4 rounded-xl border border-ink/10 bg-surface p-4 shadow-sm"
+                  className="flex gap-4 rounded-xl border border-line bg-surface p-4 shadow-sleek dark:shadow-sleek-dark"
                 >
-                  <Link href={`/deals/${product.slug}`} className="relative h-28 w-28 shrink-0 overflow-hidden rounded-lg bg-surface-subtle">
-                    {product.imageUrl ? (
-                      <Image src={product.imageUrl} alt={product.title} fill className="object-cover" sizes="112px" />
+                  <Link
+                    href={`/deals/${product.slug}`}
+                    className="relative h-28 w-28 shrink-0 overflow-hidden rounded-lg bg-surface-subtle"
+                  >
+                    {thumb ? (
+                      <Image
+                        src={thumb}
+                        alt={product.title}
+                        fill
+                        className="object-contain p-1"
+                        sizes="112px"
+                        unoptimized={Boolean(thumbAmazon)}
+                      />
                     ) : null}
                   </Link>
                   <div className="min-w-0 flex-1 space-y-2">

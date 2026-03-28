@@ -2,87 +2,75 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+/**
+ * Real US Amazon ASINs so /dp/ links and AsinImage URLs resolve.
+ * Replace with products you are approved to promote.
+ */
+const samples = [
+  {
+    externalId: "B09B8V1LZ3",
+    slug: "echo-dot-5th-gen",
+    title: "Echo Dot (5th Gen, 2022 release) | Smart speaker with Alexa | Charcoal",
+    brand: "Amazon",
+    categoryPath: "Electronics > Smart Home",
+    description: "Compact Alexa smart speaker. ASIN verified for US Amazon.",
+  },
+  {
+    externalId: "B0CGJQG1TW",
+    slug: "kindle-paperwhite",
+    title: "Amazon Kindle Paperwhite (16 GB) — 7\" glare-free display, 12th generation",
+    brand: "Amazon",
+    categoryPath: "Electronics > E-readers",
+    description: "E-reader listing; prices in app are seed values—check Amazon for live price.",
+  },
+  {
+    externalId: "B0BP9SNVH9",
+    slug: "fire-tv-stick-4k",
+    title: "Amazon Fire TV Stick 4K Max streaming device, Wi-Fi 6E, Alexa Voice Remote",
+    brand: "Amazon",
+    categoryPath: "Electronics > Streaming",
+    description: "Fire TV Stick 4K (current-gen family line on Amazon US).",
+  },
+  {
+    externalId: "B0B5MW4JTJ",
+    slug: "anker-maggo-power-bank",
+    title: "Anker MagGo Power Bank, 10K Foldable Wireless Portable Charger, MagSafe compatible",
+    brand: "Anker",
+    categoryPath: "Electronics > Accessories",
+    description: "Magnetic battery pack for iPhone; search matches “anker”, “magsafe”, “iphone”.",
+  },
+  {
+    externalId: "B0CHLMJMWL",
+    slug: "spigen-iphone-15-pro-case",
+    title: "Spigen Liquid Air designed for iPhone 15 Pro case — matte black",
+    brand: "Spigen",
+    categoryPath: "Cell Phones & Accessories > Cases",
+    description: "Case for iPhone 15 Pro; matches search “iphone”.",
+  },
+  {
+    externalId: "B0B9Z8TVJ2",
+    slug: "anker-usbc-lightning-cable",
+    title: "Anker USB-C to Lightning Cable, 310 series, 6 ft — MFi certified, iPhone fast charging",
+    brand: "Anker",
+    categoryPath: "Cell Phones & Accessories > Cables",
+    description: "USB-C to Lightning; matches “iphone”, “lightning”, “anker”.",
+  },
+  {
+    externalId: "B0CMV9PYRQ",
+    slug: "bissell-crosswave-omniforce",
+    title: "BISSELL CrossWave OmniForce Edge Wet Dry Vacuum — multi-surface cleaner",
+    brand: "Bissell",
+    categoryPath: "Home & Kitchen > Vacuums",
+    description: "Example ASIN from a working SiteStripe-style link; verify listing before heavy promotion.",
+  },
+];
+
 async function main() {
   const amazon = await prisma.merchant.upsert({
     where: { slug: "amazon" },
     create: { slug: "amazon", name: "Amazon" },
     update: {},
   });
-
-  const samples = [
-    {
-      externalId: "B0D93YPFQK",
-      slug: "echo-dot-5th-gen",
-      title: "Echo Dot (5th Gen, 2024 release) | Smart speaker with Alexa",
-      brand: "Amazon",
-      categoryPath: "Electronics > Smart Home",
-      description:
-        "Compact smart speaker for music, timers, and Alexa routines. Replace ASIN and copy with your PA-API-backed data in production.",
-      imageUrl: "https://placehold.co/400x400/0f1419/ff6b35/png?text=Echo+Dot",
-      imageSource: "seed",
-    },
-    {
-      externalId: "B0CX23V2ZK",
-      slug: "kindle-paperwhite",
-      title: "Amazon Kindle Paperwhite (16 GB) — 7\" glare-free display",
-      brand: "Amazon",
-      categoryPath: "Electronics > E-readers",
-      description: "E-reader placeholder listing for local dev; swap for real ASINs you are approved to promote.",
-      imageUrl: "https://placehold.co/400x400/0f1419/ff6b35/png?text=Kindle",
-      imageSource: "seed",
-    },
-    {
-      externalId: "B0D1XD1ZV3",
-      slug: "fire-tv-stick-4k",
-      title: "Amazon Fire TV Stick 4K streaming device",
-      brand: "Amazon",
-      categoryPath: "Electronics > Streaming",
-      description: "Streaming stick placeholder; verify live price and availability on Amazon before publishing deals.",
-      imageUrl: "https://placehold.co/400x400/0f1419/ff6b35/png?text=Fire+TV",
-      imageSource: "seed",
-    },
-    {
-      externalId: "B0CJT4XD8G",
-      slug: "anker-power-bank",
-      title: "Anker MagGo Power Bank 10K | Magnetic wireless portable charger",
-      brand: "Anker",
-      categoryPath: "Electronics > Accessories",
-      description: "Accessory example for search and category browsing.",
-      imageUrl: "https://placehold.co/400x400/0f1419/ff6b35/png?text=Anker",
-      imageSource: "seed",
-    },
-    {
-      externalId: "B0DMY00001",
-      slug: "iphone-15-pro-max-case",
-      title: "JETech Case for iPhone 15 Pro Max 6.7-Inch — matte black, military drop protection",
-      brand: "JETech",
-      categoryPath: "Cell Phones & Accessories > Cases",
-      description:
-        "Seed deal for search demos (e.g. “iphone”). Replace ASIN with a real listing you are approved to promote.",
-      imageUrl: "https://placehold.co/400x400/0f1419/ff6b35/png?text=iPhone+Case",
-      imageSource: "seed",
-    },
-    {
-      externalId: "B0DMY00002",
-      slug: "iphone-magsafe-charger-stand",
-      title: "Belkin MagSafe 2-in-1 wireless charger — iPhone 16 / 15 / 14 & AirPods",
-      brand: "Belkin",
-      categoryPath: "Cell Phones & Accessories > Chargers",
-      description: "Another iPhone-related seed row for full-text search testing.",
-      imageUrl: "https://placehold.co/400x400/0f1419/ff6b35/png?text=MagSafe",
-      imageSource: "seed",
-    },
-    {
-      externalId: "B0DMY00003",
-      slug: "usb-c-to-lightning-cable",
-      title: "Anker USB-C to Lightning cable — fast charge for iPhone 14 / 13 / 12",
-      brand: "Anker",
-      categoryPath: "Cell Phones & Accessories > Cables",
-      description: "Cable seed; matches searches like “iphone” or “lightning”.",
-      imageUrl: "https://placehold.co/400x400/0f1419/ff6b35/png?text=Lightning",
-      imageSource: "seed",
-    },
-  ];
 
   for (const s of samples) {
     const product = await prisma.product.upsert({
@@ -95,16 +83,17 @@ async function main() {
         brand: s.brand,
         categoryPath: s.categoryPath,
         description: s.description,
-        imageUrl: s.imageUrl,
-        imageSource: s.imageSource,
+        imageUrl: null,
+        imageSource: "asin_widget",
       },
       update: {
+        externalId: s.externalId,
         title: s.title,
         brand: s.brand,
         categoryPath: s.categoryPath,
         description: s.description,
-        imageUrl: s.imageUrl,
-        imageSource: s.imageSource,
+        imageUrl: null,
+        imageSource: "asin_widget",
       },
     });
 
@@ -120,7 +109,7 @@ async function main() {
         dealLabel: "Editor’s pick",
         affiliateUrl: null,
         source: "seed",
-        availabilityNote: "Seed data for development only.",
+        availabilityNote: "Seed price for demo; verify on Amazon before purchase.",
         fetchedAt: new Date(),
         lastSyncedAt: new Date(),
       },
@@ -129,39 +118,35 @@ async function main() {
 
   const echo = await prisma.product.findUnique({ where: { slug: "echo-dot-5th-gen" } });
   const kindle = await prisma.product.findUnique({ where: { slug: "kindle-paperwhite" } });
-  const anker = await prisma.product.findUnique({ where: { slug: "anker-power-bank" } });
+  const ankerBank = await prisma.product.findUnique({ where: { slug: "anker-maggo-power-bank" } });
 
-  if (echo && kindle && anker) {
+  if (echo && kindle && ankerBank) {
     await prisma.post.upsert({
       where: { slug: "smart-home-starter-deals" },
       create: {
         slug: "smart-home-starter-deals",
         title: "Smart home starter deals we’re watching",
-        excerpt: "Echo, Kindle, and a rock-solid accessory—editorial roundup format for WhatsCompare.",
+        excerpt: "Echo, Kindle, and a solid Anker pick—editorial roundup on WhatsCompare.",
         publishedAt: new Date(),
         body: `## Why these picks
 
-We curate offers from our database and link out with our Amazon Associates tag. **Prices and availability change**—always confirm on Amazon before you buy.
+We link with our Amazon Associates tag. **Prices and availability change**—always confirm on Amazon before you buy.
 
-- Reliable Alexa hub for timers and music
-- E-reader for distraction-free reading  
-- Travel-friendly charging when you’re on the go
-
-Use the product blocks below for one-click affiliate destinations.`,
+- Alexa in every room
+- Distraction-free reading
+- Keep devices charged on the go`,
       },
       update: {
         title: "Smart home starter deals we’re watching",
-        excerpt: "Echo, Kindle, and a rock-solid accessory—editorial roundup format for WhatsCompare.",
+        excerpt: "Echo, Kindle, and a solid Anker pick—editorial roundup on WhatsCompare.",
         publishedAt: new Date(),
         body: `## Why these picks
 
-We curate offers from our database and link out with our Amazon Associates tag. **Prices and availability change**—always confirm on Amazon before you buy.
+We link with our Amazon Associates tag. **Prices and availability change**—always confirm on Amazon before you buy.
 
-- Reliable Alexa hub for timers and music
-- E-reader for distraction-free reading  
-- Travel-friendly charging when you’re on the go
-
-Use the product blocks below for one-click affiliate destinations.`,
+- Alexa in every room
+- Distraction-free reading
+- Keep devices charged on the go`,
       },
     });
 
@@ -174,7 +159,7 @@ Use the product blocks below for one-click affiliate destinations.`,
       data: [
         { postId: post.id, productId: echo.id, sortOrder: 0, blurb: "Best entry point for Alexa routines." },
         { postId: post.id, productId: kindle.id, sortOrder: 1, blurb: "Great for reading without phone glare." },
-        { postId: post.id, productId: anker.id, sortOrder: 2, blurb: "Keep phones topped up on travel days." },
+        { postId: post.id, productId: ankerBank.id, sortOrder: 2, blurb: "MagSafe-friendly power on the go." },
       ],
     });
   }

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { buildAmazonProductUrl, getPartnerTagOrPlaceholder } from "@/lib/amazon-affiliate";
+import { buildAmazonProductUrl, getPartnerTagOrPlaceholder, resolveProductImageUrl } from "@/lib/amazon-affiliate";
 import { formatPriceDisclaimer } from "@/lib/format-price";
 import { prisma } from "@/lib/prisma";
 
@@ -31,6 +31,9 @@ export default async function DealDetailPage({ params }: Props) {
     offer?.affiliateUrl ??
     (product.merchant.slug === "amazon" ? buildAmazonProductUrl(product.externalId, { partnerTag: tag }) : null);
 
+  const heroImg = resolveProductImageUrl(product, tag);
+  const heroAmazonImg = heroImg?.includes("amazon-adsystem.com");
+
   const priceText = offer
     ? new Intl.NumberFormat("en-US", { style: "currency", currency: offer.currency }).format(
         Number(offer.priceAmount)
@@ -55,15 +58,16 @@ export default async function DealDetailPage({ params }: Props) {
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-2">
-        <div className="relative aspect-square overflow-hidden rounded-2xl border border-ink/10 bg-surface-subtle">
-          {product.imageUrl ? (
+        <div className="relative aspect-square overflow-hidden rounded-2xl border border-line bg-surface-subtle">
+          {heroImg ? (
             <Image
-              src={product.imageUrl}
+              src={heroImg}
               alt={product.title}
               fill
-              className="object-cover"
+              className="object-contain p-4"
               priority
               sizes="(max-width: 1024px) 100vw, 50vw"
+              unoptimized={Boolean(heroAmazonImg)}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-ink-muted">No image on file</div>
@@ -76,7 +80,7 @@ export default async function DealDetailPage({ params }: Props) {
           {product.brand ? <p className="text-sm text-ink-muted">Brand: {product.brand}</p> : null}
           {product.categoryPath ? <p className="text-sm text-ink-muted">{product.categoryPath}</p> : null}
 
-          <div className="rounded-xl border border-ink/10 bg-surface p-5 shadow-sm">
+          <div className="rounded-xl border border-line bg-surface p-5 shadow-sleek dark:shadow-sleek-dark">
             {priceText ? (
               <div className="flex flex-wrap items-baseline gap-3">
                 <p className="text-3xl font-bold text-ink">{priceText}</p>
@@ -104,7 +108,7 @@ export default async function DealDetailPage({ params }: Props) {
           </div>
 
           {product.description ? (
-            <div className="prose prose-sm max-w-none text-ink-muted">
+            <div className="prose prose-sm max-w-none text-ink-muted dark:prose-invert">
               <p>{product.description}</p>
             </div>
           ) : null}
@@ -118,7 +122,7 @@ export default async function DealDetailPage({ params }: Props) {
             {product.priceHistory.map((row) => (
               <li
                 key={row.id}
-                className="flex justify-between rounded-md border border-ink/10 bg-surface-subtle px-3 py-2 text-sm"
+                className="flex justify-between rounded-md border border-line bg-surface-subtle px-3 py-2 text-sm"
               >
                 <span className="text-ink-muted">{row.recordedAt.toLocaleDateString()}</span>
                 <span className="font-medium text-ink">

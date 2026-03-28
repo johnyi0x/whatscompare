@@ -1,7 +1,7 @@
 export function AffiliateDisclosure({ className = "" }: { className?: string }) {
   return (
     <aside
-      className={`rounded-lg border border-ink/10 bg-surface-subtle px-4 py-3 text-sm text-ink-muted ${className}`}
+      className={`rounded-xl border border-line bg-surface-subtle px-4 py-3 text-sm leading-relaxed text-ink-muted ${className}`}
       role="note"
     >
       <strong className="font-medium text-ink">Affiliate disclosure.</strong> WhatsCompare earns from qualifying

@@ -20,7 +20,7 @@ export default async function PostsIndexPage() {
           <li key={post.id}>
             <Link
               href={`/posts/${post.slug}`}
-              className="block rounded-xl border border-ink/10 bg-surface p-5 transition hover:border-accent/40"
+              className="block rounded-xl border border-line bg-surface p-5 shadow-sleek transition hover:border-accent/40 dark:shadow-sleek-dark"
             >
               <h2 className="font-display text-xl font-semibold text-ink">{post.title}</h2>
               {post.excerpt ? <p className="mt-2 text-sm text-ink-muted line-clamp-2">{post.excerpt}</p> : null}

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Merchant, Offer, Product } from "@prisma/client";
-import { buildAmazonProductUrl, getPartnerTagOrPlaceholder } from "@/lib/amazon-affiliate";
+import { buildAmazonProductUrl, getPartnerTagOrPlaceholder, resolveProductImageUrl } from "@/lib/amazon-affiliate";
 import { formatPriceDisclaimer } from "@/lib/format-price";
 
 export type ProductCardModel = Product & {
@@ -18,6 +18,9 @@ export function ProductCard({ product }: { product: ProductCardModel }) {
       ? buildAmazonProductUrl(product.externalId, { partnerTag: tag })
       : "#");
 
+  const imgSrc = resolveProductImageUrl(product, tag);
+  const amazonImg = imgSrc?.includes("amazon-adsystem.com");
+
   const priceText = offer
     ? new Intl.NumberFormat("en-US", { style: "currency", currency: offer.currency }).format(
         Number(offer.priceAmount)
@@ -25,16 +28,17 @@ export function ProductCard({ product }: { product: ProductCardModel }) {
     : "See Amazon";
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-xl border border-ink/10 bg-surface shadow-sm transition hover:border-accent/40">
+    <article className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-sleek transition hover:border-accent/35 hover:shadow-lg dark:shadow-sleek-dark">
       <Link href={`/deals/${product.slug}`} className="block">
         <div className="relative aspect-square bg-surface-subtle">
-          {product.imageUrl ? (
+          {imgSrc ? (
             <Image
-              src={product.imageUrl}
+              src={imgSrc}
               alt={product.title}
               fill
-              className="object-cover"
+              className="object-contain p-3 transition duration-300 group-hover:scale-[1.02]"
               sizes="(max-width: 640px) 100vw, 33vw"
+              unoptimized={Boolean(amazonImg)}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-ink-muted">No image</div>
@@ -42,20 +46,18 @@ export function ProductCard({ product }: { product: ProductCardModel }) {
         </div>
       </Link>
       <div className="flex flex-1 flex-col gap-2 p-4">
-        <Link href={`/deals/${product.slug}`} className="font-medium text-ink hover:text-accent">
+        <Link href={`/deals/${product.slug}`} className="font-medium text-ink transition group-hover:text-accent">
           <h2 className="line-clamp-2 text-base leading-snug">{product.title}</h2>
         </Link>
         {product.brand ? <p className="text-xs text-ink-muted">{product.brand}</p> : null}
-        {offer?.dealLabel ? (
-          <p className="text-xs font-medium text-accent">{offer.dealLabel}</p>
-        ) : null}
-        <p className="text-lg font-semibold text-ink">{priceText}</p>
-        <p className="text-xs text-ink-muted">{formatPriceDisclaimer(offer)}</p>
+        {offer?.dealLabel ? <p className="text-xs font-medium text-accent">{offer.dealLabel}</p> : null}
+        <p className="text-lg font-semibold tabular-nums text-ink">{priceText}</p>
+        <p className="text-xs leading-relaxed text-ink-muted">{formatPriceDisclaimer(offer)}</p>
         <a
           href={href}
           target="_blank"
           rel="sponsored noopener noreferrer"
-          className="mt-auto inline-flex justify-center rounded-md bg-ink px-3 py-2 text-center text-sm font-medium text-white hover:bg-ink/90"
+          className="mt-auto inline-flex justify-center rounded-lg bg-ink px-3 py-2.5 text-center text-sm font-medium text-white transition hover:opacity-90 dark:bg-slate-100 dark:text-slate-900"
         >
           View on Amazon
         </a>
