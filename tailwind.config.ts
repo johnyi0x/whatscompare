@@ -14,7 +14,6 @@ const config: Config = {
         ink: { DEFAULT: "var(--color-ink)", muted: "var(--color-ink-muted)" },
         surface: { DEFAULT: "var(--color-surface)", subtle: "var(--color-surface-subtle)" },
         accent: { DEFAULT: "var(--color-accent)", hover: "var(--color-accent-hover)" },
-        whats: "var(--color-whats)",
         compare: "var(--color-compare)",
         line: "var(--color-line)",
       },
@@ -23,8 +22,8 @@ const config: Config = {
         display: ["var(--font-display)", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        sleek: "0 1px 2px rgb(15 23 42 / 0.04), 0 4px 24px rgb(15 23 42 / 0.06)",
-        "sleek-dark": "0 1px 2px rgb(0 0 0 / 0.2), 0 4px 24px rgb(0 0 0 / 0.35)",
+        sleek: "0 1px 2px rgb(15 23 42 / 0.04), 0 4px 20px rgb(34 197 94 / 0.06)",
+        "sleek-dark": "0 1px 2px rgb(0 0 0 / 0.25), 0 4px 24px rgb(0 0 0 / 0.35)",
       },
     },
   },

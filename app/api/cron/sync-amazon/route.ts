@@ -1,22 +1,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { paApiConfigured, syncAmazonOffersFromPaApi } from "@/lib/pa-api-sync";
+import { serpApiConfigured, syncStaleProductsFromSerpApi } from "@/lib/serpapi-sync";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
+
+function authorize(request: Request): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return true;
+  return request.headers.get("authorization") === `Bearer ${secret}`;
+}
 
 /**
- * Vercel Cron: set CRON_SECRET in project env; Vercel sends `Authorization: Bearer <CRON_SECRET>`.
- * Schedule via vercel.json (e.g. every 6 hours). Without PA-API keys, job logs `skipped` and exits 200.
+ * Daily ingest (Vercel Cron): PA-API when eligible, then SerpApi for stale products (DB-first; no user-request calls).
  */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!authorize(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const body: Record<string, unknown> = { ok: true };
 
   try {
     const products = await prisma.product.findMany({
@@ -25,41 +29,64 @@ export async function GET(request: Request) {
     });
     const asins = products.map((p) => p.externalId);
 
+    /* —— Amazon PA-API (Creators API path; requires qualifying sales) —— */
     if (!paApiConfigured()) {
       await prisma.syncJobLog.create({
         data: {
-          job: "sync-amazon",
+          job: "sync-amazon-paapi",
           status: "skipped",
           detail:
-            "PA-API credentials not set (PAAPI_ACCESS_KEY, PAAPI_SECRET_KEY, AMAZON_PARTNER_TAG). No prices updated.",
+            "PA-API / Creators API credentials not set or not eligible. Skipped.",
           itemCount: 0,
           finishedAt: new Date(),
         },
       });
-      return NextResponse.json({
-        ok: true,
-        skipped: true,
-        reason: "pa_api_not_configured",
-        asinCount: asins.length,
+      body.paApi = { skipped: true, reason: "pa_api_not_configured", asinCount: asins.length };
+    } else {
+      const { updated, errors } = await syncAmazonOffersFromPaApi(asins);
+      const status =
+        errors.length && updated === 0 ? "error" : errors.length ? "partial" : "success";
+      await prisma.syncJobLog.create({
+        data: {
+          job: "sync-amazon-paapi",
+          status,
+          detail: errors.length ? errors.join(" | ").slice(0, 8000) : "ok",
+          itemCount: updated,
+          finishedAt: new Date(),
+        },
       });
+      body.paApi = { updated, errors, asinCount: asins.length };
     }
 
-    const { updated, errors } = await syncAmazonOffersFromPaApi(asins);
+    /* —— SerpApi Amazon Product (paid 3rd party; TTL + cap; fills DB for site) —— */
+    if (!serpApiConfigured()) {
+      await prisma.syncJobLog.create({
+        data: {
+          job: "sync-serpapi",
+          status: "skipped",
+          detail: "SERPAPI_API_KEY not set.",
+          itemCount: 0,
+          finishedAt: new Date(),
+        },
+      });
+      body.serpApi = { skipped: true, reason: "serpapi_not_configured" };
+    } else {
+      const { updated, errors } = await syncStaleProductsFromSerpApi();
+      const status =
+        errors.length && updated === 0 ? "error" : errors.length ? "partial" : "success";
+      await prisma.syncJobLog.create({
+        data: {
+          job: "sync-serpapi",
+          status,
+          detail: errors.length ? errors.join(" | ").slice(0, 8000) : "ok",
+          itemCount: updated,
+          finishedAt: new Date(),
+        },
+      });
+      body.serpApi = { updated, errors };
+    }
 
-    const status =
-      errors.length && updated === 0 ? "error" : errors.length ? "partial" : "success";
-
-    await prisma.syncJobLog.create({
-      data: {
-        job: "sync-amazon",
-        status,
-        detail: errors.length ? errors.join(" | ").slice(0, 8000) : "ok",
-        itemCount: updated,
-        finishedAt: new Date(),
-      },
-    });
-
-    return NextResponse.json({ ok: true, updated, errors, asinCount: asins.length });
+    return NextResponse.json(body);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     await prisma.syncJobLog.create({

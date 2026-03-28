@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import { ProductImage } from "@/components/ProductImage";
 import { buildAmazonProductUrl, getPartnerTagOrPlaceholder, resolveProductImageUrl } from "@/lib/amazon-affiliate";
 import { formatPriceDisclaimer } from "@/lib/format-price";
 import { prisma } from "@/lib/prisma";
@@ -64,7 +64,6 @@ export default async function PostDetailPage({ params }: Props) {
                   ? buildAmazonProductUrl(product.externalId, { partnerTag: tag })
                   : "#");
               const thumb = resolveProductImageUrl(product, tag);
-              const thumbAmazon = thumb?.includes("amazon-adsystem.com");
               const priceText = offer
                 ? new Intl.NumberFormat("en-US", { style: "currency", currency: offer.currency }).format(
                     Number(offer.priceAmount)
@@ -81,13 +80,10 @@ export default async function PostDetailPage({ params }: Props) {
                     className="relative h-28 w-28 shrink-0 overflow-hidden rounded-lg bg-surface-subtle"
                   >
                     {thumb ? (
-                      <Image
+                      <ProductImage
                         src={thumb}
                         alt={product.title}
-                        fill
-                        className="object-contain p-1"
-                        sizes="112px"
-                        unoptimized={Boolean(thumbAmazon)}
+                        className="absolute inset-0 h-full w-full object-contain p-1"
                       />
                     ) : null}
                   </Link>

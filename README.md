@@ -1,6 +1,6 @@
 # WhatsCompare
 
-Next.js 14 (App Router) product deal finder for **whatscompare.com**: Postgres-backed catalog, search (pg_trgm + similarity), deal detail pages, editorial “posts” with embedded products, Amazon affiliate links, optional **Product Advertising API 5** sync via Vercel Cron.
+Next.js 14 (App Router) product deal finder for **whatscompare.com**: Postgres-backed catalog, search (pg_trgm + similarity), deal detail pages, editorial “posts” with embedded products, Amazon affiliate links, optional **PA-API 5 / Creators API** sync when eligible, and optional **SerpApi Amazon Product** ingest (paid third party) when PA-API is unavailable—all via Vercel Cron; **pages never call those APIs**.
 
 ## Stack choices
 
@@ -46,7 +46,9 @@ Copy `.env.example` to `.env` locally and set:
 - `CRON_SECRET` — long random string (production).
 - Optional PA-API: `PAAPI_ACCESS_KEY`, `PAAPI_SECRET_KEY`, and optionally `PAAPI_HOST`, `PAAPI_REGION`, `PAAPI_MARKETPLACE` (defaults target US Product Advertising API host).
 
-**PA-API note:** Eligibility (e.g. sales requirements) varies by program and region. Confirm in Amazon’s current documentation before relying on API prices. If PA-API is not available, leave those vars empty—the cron job logs `skipped` and the UI still works with seeded/manual data plus “verify on Amazon” messaging.
+**Amazon API note:** PA-API is being superseded by **Creators API**; eligibility often includes qualifying sales (see [Amazon’s Creators API docs](https://affiliate-program.amazon.com/creatorsapi/docs/en-us/introduction)). If you are not eligible, leave `PAAPI_*` empty—the daily cron still runs and logs `skipped`.
+
+- Optional **SerpApi** (third party, billable): `SERPAPI_API_KEY`, plus optional `SERPAPI_AMAZON_DOMAIN`, `SERPAPI_LANGUAGE`, `SERPAPI_REFRESH_HOURS` (default 48), `SERPAPI_MAX_PER_RUN` (default 5, cap 25), `SERPAPI_REQUEST_DELAY_MS` (default 400). Ingest writes `Offer` / `PriceHistory` with `source=serpapi` and updates `Product.serpapiSyncedAt` so the same ASIN is not refetched until stale. This is **not** an official Amazon API; read [SerpApi’s Amazon Product API](https://serpapi.com/amazon-product-api) for pricing and terms.
 
 ### 4. Prisma migrate + seed
 
@@ -90,13 +92,14 @@ npx prisma db push
 
 ## Cron: what runs, how often, limits
 
-- **Route:** `GET /api/cron/sync-amazon`
-- **Schedule:** `0 9 * * *` (once daily at **09:00 UTC**) in `vercel.json` — **Vercel Hobby allows at most one cron run per day**; use Pro if you need more frequent runs (e.g. every 6 hours).
+- **Route:** `GET /api/cron/sync-amazon` (single Hobby cron in `vercel.json`)
+- **Schedule:** `0 9 * * *` (once daily at **09:00 UTC**) — **Vercel Hobby allows at most one cron run per day**; use Pro if you need more frequent runs (e.g. every 6 hours).
 - **Auth:** If `CRON_SECRET` is set, requests must include `Authorization: Bearer <CRON_SECRET>` (Vercel Cron does this automatically when the var exists).
-- **Behavior:** Loads all Amazon `Product.externalId` (ASIN) values, calls PA-API `GetItems` in batches of 10 when credentials exist, inserts new `Offer` + `PriceHistory` rows and updates images when returned. Logs to `SyncJobLog`.
-- **Failure handling:** Partial errors from PA-API are stored in the log row; HTTP 500 only on thrown exceptions. Without PA-API keys, returns 200 with `{ skipped: true }` so cron does not retry as a hard failure.
+- **Behavior:** (1) PA-API `GetItems` for all Amazon ASINs when `PAAPI_*` are set. (2) **SerpApi** refresh for products with `serpapiSyncedAt` null or older than `SERPAPI_REFRESH_HOURS`, up to `SERPAPI_MAX_PER_RUN` per run, when `SERPAPI_API_KEY` is set. Both write to Postgres; **user-facing routes only read the database** (except `/api/amazon-img`, which proxies Amazon’s image URL). Logs separate `SyncJobLog` rows: `sync-amazon-paapi`, `sync-serpapi`.
+- **Optional manual SerpApi-only hit:** `GET /api/cron/sync-serpapi` with the same `Authorization` header (useful for testing or an extra Pro cron).
+- **Failure handling:** Partial errors are stored in log `detail`; HTTP 500 only on thrown exceptions. Missing keys return 200 with `skipped` so cron does not retry as a hard failure.
 
-**Rate limits:** Respect [PA-API throttles](https://webservices.amazon.com/paapi5/documentation/troubleshooting/api-rates.html). Reduce cron frequency or ASIN count if you hit limits.
+**Rate limits:** Respect [PA-API throttles](https://webservices.amazon.com/paapi5/documentation/troubleshooting/api-rates.html). For SerpApi, keep `SERPAPI_MAX_PER_RUN` and `SERPAPI_REFRESH_HOURS` conservative to control cost; see SerpApi pricing and cache behavior.
 
 ## API
 

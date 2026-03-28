@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import type { Merchant, Offer, Product } from "@prisma/client";
 import { buildAmazonProductUrl, getPartnerTagOrPlaceholder, resolveProductImageUrl } from "@/lib/amazon-affiliate";
 import { formatPriceDisclaimer } from "@/lib/format-price";
+import { ProductImage } from "./ProductImage";
 
 export type ProductCardModel = Product & {
   merchant: Merchant;
@@ -19,7 +19,6 @@ export function ProductCard({ product }: { product: ProductCardModel }) {
       : "#");
 
   const imgSrc = resolveProductImageUrl(product, tag);
-  const amazonImg = imgSrc?.includes("amazon-adsystem.com");
 
   const priceText = offer
     ? new Intl.NumberFormat("en-US", { style: "currency", currency: offer.currency }).format(
@@ -28,17 +27,14 @@ export function ProductCard({ product }: { product: ProductCardModel }) {
     : "See Amazon";
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-sleek transition hover:border-accent/35 hover:shadow-lg dark:shadow-sleek-dark">
+    <article className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-sleek transition hover:border-accent/40 hover:shadow-lg dark:shadow-sleek-dark">
       <Link href={`/deals/${product.slug}`} className="block">
         <div className="relative aspect-square bg-surface-subtle">
           {imgSrc ? (
-            <Image
+            <ProductImage
               src={imgSrc}
               alt={product.title}
-              fill
-              className="object-contain p-3 transition duration-300 group-hover:scale-[1.02]"
-              sizes="(max-width: 640px) 100vw, 33vw"
-              unoptimized={Boolean(amazonImg)}
+              className="absolute inset-0 h-full w-full object-contain p-3 transition duration-300 group-hover:scale-[1.02]"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-ink-muted">No image</div>

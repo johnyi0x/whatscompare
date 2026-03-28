@@ -2,29 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Pastel natural green + ink text. "Whats" uses --color-ink; "Compare" uses --color-compare */
 :root {
-  --color-ink: #0c1222;
+  --color-ink: #0f172a;
   --color-ink-muted: #64748b;
   --color-surface: #ffffff;
-  --color-surface-subtle: #f1f5f9;
-  --color-bg-page: #f8fafc;
-  --color-accent: #4f46e5;
-  --color-accent-hover: #4338ca;
-  --color-whats: #6366f1;
-  --color-compare: #0ea5e9;
-  --color-line: rgb(15 23 42 / 0.09);
+  --color-surface-subtle: #f0fdf4;
+  --color-bg-page: #f7fcf9;
+  --color-accent: #6b9e7d;
+  --color-accent-hover: #5a8a6c;
+  --color-compare: #5cb88a;
+  --color-line: rgb(15 23 42 / 0.08);
 }
 
 .dark {
   --color-ink: #f1f5f9;
   --color-ink-muted: #94a3b8;
   --color-surface: #0f172a;
-  --color-surface-subtle: #1e293b;
-  --color-bg-page: #020617;
-  --color-accent: #818cf8;
-  --color-accent-hover: #a5b4fc;
-  --color-whats: #a5b4fc;
-  --color-compare: #38bdf8;
+  --color-surface-subtle: #1c2938;
+  --color-bg-page: #0c1220;
+  --color-accent: #7eb89a;
+  --color-accent-hover: #8fc9aa;
+  --color-compare: #86d4ae;
   --color-line: rgb(248 250 252 / 0.1);
 }
 

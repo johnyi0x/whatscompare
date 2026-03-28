@@ -34,9 +34,11 @@ model Product {
   description  String?  @db.Text
   /// Image URL — prefer PA-API-sourced images per Amazon policies when using their catalog.
   imageUrl     String?
-  imageSource  String? // pa_api | seed | manual | none
+  imageSource  String? // pa_api | serpapi | seed | asin_proxy | manual | none
   /// ISO 639-1 + region for Amazon marketplace (e.g. en_US).
   locale       String   @default("en_US")
+  /// Last successful SerpApi `amazon_product` ingest (for TTL refresh; never set on user page views).
+  serpapiSyncedAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -63,7 +65,7 @@ model Offer {
   /// Full affiliate destination when pre-built; else UI builds from ASIN + tag.
   affiliateUrl     String?
   fetchedAt        DateTime @default(now())
-  source           String // pa_api | seed | manual | cron
+  source           String // pa_api | serpapi | seed | manual | cron
   availabilityNote String?
   lastSyncedAt     DateTime?
 

@@ -9,7 +9,7 @@ export function AffiliateDisclosure({ className = "" }: { className?: string }) 
       commission. Program rules for your locale apply—see{" "}
       <a
         href="https://affiliate-program.amazon.com/help/operating/agreement"
-        className="text-accent underline-offset-2 hover:underline"
+        className="text-accent underline-offset-2 hover:text-accent-hover hover:underline"
         rel="noopener noreferrer"
         target="_blank"
       >

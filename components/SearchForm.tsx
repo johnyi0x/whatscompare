@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
-export function SearchForm({ initial = "" }: { initial?: string }) {
+export function SearchForm({ initial = "", className = "" }: { initial?: string; className?: string }) {
   const router = useRouter();
   const [q, setQ] = useState(initial);
 
@@ -18,18 +18,18 @@ export function SearchForm({ initial = "" }: { initial?: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex gap-2">
+    <form onSubmit={onSubmit} className={`flex min-w-0 gap-2 ${className}`}>
       <input
         name="q"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Search deals (e.g. iPhone, Kindle, Bissell)…"
-        className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
+        placeholder="Search deals…"
+        className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
         aria-label="Search products"
       />
       <button
         type="submit"
-        className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
+        className="shrink-0 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-hover sm:px-4"
       >
         Search
       </button>

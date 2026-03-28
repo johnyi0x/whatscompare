@@ -42,7 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <AffiliateDisclosure />
               <p className="text-xs text-ink-muted">
                 © {new Date().getFullYear()}{" "}
-                <span className="text-whats">Whats</span>
+                <span className="text-ink">Whats</span>
                 <span className="text-compare">Compare</span>. Not affiliated with Amazon. Amazon and related marks are
                 trademarks of Amazon.com, Inc. or its affiliates.
               </p>

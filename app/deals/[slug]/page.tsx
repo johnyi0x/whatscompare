@@ -1,6 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ProductImage } from "@/components/ProductImage";
 import { buildAmazonProductUrl, getPartnerTagOrPlaceholder, resolveProductImageUrl } from "@/lib/amazon-affiliate";
 import { formatPriceDisclaimer } from "@/lib/format-price";
 import { prisma } from "@/lib/prisma";
@@ -32,7 +32,6 @@ export default async function DealDetailPage({ params }: Props) {
     (product.merchant.slug === "amazon" ? buildAmazonProductUrl(product.externalId, { partnerTag: tag }) : null);
 
   const heroImg = resolveProductImageUrl(product, tag);
-  const heroAmazonImg = heroImg?.includes("amazon-adsystem.com");
 
   const priceText = offer
     ? new Intl.NumberFormat("en-US", { style: "currency", currency: offer.currency }).format(
@@ -60,14 +59,11 @@ export default async function DealDetailPage({ params }: Props) {
       <div className="grid gap-10 lg:grid-cols-2">
         <div className="relative aspect-square overflow-hidden rounded-2xl border border-line bg-surface-subtle">
           {heroImg ? (
-            <Image
+            <ProductImage
               src={heroImg}
               alt={product.title}
-              fill
-              className="object-contain p-4"
               priority
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              unoptimized={Boolean(heroAmazonImg)}
+              className="absolute inset-0 h-full w-full object-contain p-4"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-ink-muted">No image on file</div>

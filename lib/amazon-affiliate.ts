@@ -1,6 +1,6 @@
 /**
  * Amazon Associates URLs and product images.
- * Use your exact store tag from SiteStripe (e.g. whatscompar0e-20) in AMAZON_PARTNER_TAG.
+ * Use your exact store tag from SiteStripe in AMAZON_PARTNER_TAG.
  * See COMPLIANCE.md and current Program policies.
  */
 export type AmazonMarketplace = "www.amazon.com" | "www.amazon.co.uk" | "www.amazon.de";
@@ -20,8 +20,7 @@ export function getPartnerTagOrPlaceholder(): string {
 }
 
 /**
- * Text CTA link: always https://www.amazon.com/dp/{ASIN} with Associates params.
- * linkCode=ll1 is the standard text-link format (SiteStripe often uses ll2 for image links).
+ * Product detail link — always https://www.amazon.com/dp/{ASIN}?tag=…&linkCode=ll1
  */
 export function buildAmazonProductUrl(
   asin: string,
@@ -52,10 +51,7 @@ export function buildAmazonSearchUrl(
   return `https://${host}/s?${params.toString()}`;
 }
 
-/**
- * Associates-compliant product image from Amazon (AsinImage widget).
- * Requires a valid ASIN; tag must match your Associates account.
- */
+/** AsinImage widget URL (fetch server-side via /api/amazon-img, not always reliable in browsers). */
 export function buildAmazonAsinImageUrl(asin: string, partnerTag: string, size = 500): string {
   const q = new URLSearchParams({
     _encoding: "UTF8",
@@ -72,21 +68,28 @@ export function buildAmazonAsinImageUrl(asin: string, partnerTag: string, size =
 
 const PLACEHOLDER_HOSTS = ["placehold.co", "via.placeholder", "placeholder"];
 
+function isPlaceholderUrl(url: string | null): boolean {
+  if (!url) return true;
+  return PLACEHOLDER_HOSTS.some((h) => url.toLowerCase().includes(h.toLowerCase()));
+}
+
+/**
+ * Prefer explicit https image URLs (e.g. from PA-API). Otherwise same-origin proxy for Amazon ASIN art.
+ */
 export function resolveProductImageUrl(
   product: {
     imageUrl: string | null;
     merchant: { slug: string };
     externalId: string;
   },
-  partnerTag: string
+  _partnerTag: string
 ): string | null {
   const url = product.imageUrl;
-  const isPlaceholder =
-    !url || PLACEHOLDER_HOSTS.some((h) => url.toLowerCase().includes(h.toLowerCase()));
-
-  if (product.merchant.slug === "amazon" && isPlaceholder) {
-    return buildAmazonAsinImageUrl(product.externalId, partnerTag);
+  if (url && !isPlaceholderUrl(url) && url.startsWith("http")) {
+    return url;
   }
-
+  if (product.merchant.slug === "amazon") {
+    return `/api/amazon-img?asin=${encodeURIComponent(product.externalId)}`;
+  }
   return url;
 }
