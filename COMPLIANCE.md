@@ -12,7 +12,7 @@ Review the **current** versions (they change over time):
 
 ## What this codebase does
 
-- **Disclosure**: `AffiliateDisclosure` appears on the home page, search, deal detail, and editorial posts, plus the site footer points to the Operating Agreement.
+- **Disclosure**: A single `AffiliateDisclosure` appears in the **site footer** on every page (via `app/layout.tsx`), plus the footer links to the Operating Agreement.
 - **Outbound links**: Product CTAs use `rel="sponsored noopener noreferrer"` where we link to Amazon with your tag.
 - **Pricing**: UI copy stresses that displayed prices are **from your database / PA-API snapshot** and may differ from live checkout; users are directed to **verify on Amazon**.
 - **Images**: Seed data uses neutral placeholders. In production, prefer images obtained through **PA-API** (or other methods your agreement allows) rather than hotlinking without authorization.

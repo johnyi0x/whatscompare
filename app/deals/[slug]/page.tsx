@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AffiliateDisclosure } from "@/components/AffiliateDisclosure";
 import { buildAmazonProductUrl, getPartnerTagOrPlaceholder } from "@/lib/amazon-affiliate";
 import { formatPriceDisclaimer } from "@/lib/format-price";
 import { prisma } from "@/lib/prisma";
@@ -76,8 +75,6 @@ export default async function DealDetailPage({ params }: Props) {
           <h1 className="font-display text-3xl font-semibold leading-tight text-ink">{product.title}</h1>
           {product.brand ? <p className="text-sm text-ink-muted">Brand: {product.brand}</p> : null}
           {product.categoryPath ? <p className="text-sm text-ink-muted">{product.categoryPath}</p> : null}
-
-          <AffiliateDisclosure />
 
           <div className="rounded-xl border border-ink/10 bg-surface p-5 shadow-sm">
             {priceText ? (

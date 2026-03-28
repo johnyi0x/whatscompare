@@ -51,6 +51,37 @@ async function main() {
       imageUrl: "https://placehold.co/400x400/0f1419/ff6b35/png?text=Anker",
       imageSource: "seed",
     },
+    {
+      externalId: "B0DMY00001",
+      slug: "iphone-15-pro-max-case",
+      title: "JETech Case for iPhone 15 Pro Max 6.7-Inch — matte black, military drop protection",
+      brand: "JETech",
+      categoryPath: "Cell Phones & Accessories > Cases",
+      description:
+        "Seed deal for search demos (e.g. “iphone”). Replace ASIN with a real listing you are approved to promote.",
+      imageUrl: "https://placehold.co/400x400/0f1419/ff6b35/png?text=iPhone+Case",
+      imageSource: "seed",
+    },
+    {
+      externalId: "B0DMY00002",
+      slug: "iphone-magsafe-charger-stand",
+      title: "Belkin MagSafe 2-in-1 wireless charger — iPhone 16 / 15 / 14 & AirPods",
+      brand: "Belkin",
+      categoryPath: "Cell Phones & Accessories > Chargers",
+      description: "Another iPhone-related seed row for full-text search testing.",
+      imageUrl: "https://placehold.co/400x400/0f1419/ff6b35/png?text=MagSafe",
+      imageSource: "seed",
+    },
+    {
+      externalId: "B0DMY00003",
+      slug: "usb-c-to-lightning-cable",
+      title: "Anker USB-C to Lightning cable — fast charge for iPhone 14 / 13 / 12",
+      brand: "Anker",
+      categoryPath: "Cell Phones & Accessories > Cables",
+      description: "Cable seed; matches searches like “iphone” or “lightning”.",
+      imageUrl: "https://placehold.co/400x400/0f1419/ff6b35/png?text=Lightning",
+      imageSource: "seed",
+    },
   ];
 
   for (const s of samples) {

@@ -1,4 +1,3 @@
-import { AffiliateDisclosure } from "@/components/AffiliateDisclosure";
 import { ProductCard } from "@/components/ProductCard";
 import { searchProductsWithOffers } from "@/lib/search";
 
@@ -18,8 +17,6 @@ export default async function SearchPage({ searchParams }: Props) {
             : "Enter a query in the header to search titles and brands."}
         </p>
       </div>
-
-      <AffiliateDisclosure />
 
       {q && products.length === 0 ? (
         <p className="rounded-lg border border-dashed border-ink/20 bg-surface-subtle px-4 py-8 text-center text-ink-muted">

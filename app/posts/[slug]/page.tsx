@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
-import { AffiliateDisclosure } from "@/components/AffiliateDisclosure";
 import { buildAmazonProductUrl, getPartnerTagOrPlaceholder } from "@/lib/amazon-affiliate";
 import { formatPriceDisclaimer } from "@/lib/format-price";
 import { prisma } from "@/lib/prisma";
@@ -48,8 +47,6 @@ export default async function PostDetailPage({ params }: Props) {
           </p>
         ) : null}
       </header>
-
-      <AffiliateDisclosure />
 
       <div className="prose prose-neutral max-w-none prose-headings:font-display prose-a:text-accent">
         <ReactMarkdown>{post.body}</ReactMarkdown>

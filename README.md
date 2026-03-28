@@ -56,6 +56,8 @@ npx prisma migrate deploy
 npm run db:seed
 ```
 
+**Vercel:** `npm run build` already runs migrate + seed, so production gets sample products on each deploy (seed uses upserts; safe to repeat).
+
 For local iterative schema tweaks without migration files:
 
 ```bash
@@ -66,7 +68,7 @@ npx prisma db push
 
 1. Import the GitHub repo in [Vercel](https://vercel.com).
 2. Add the same environment variables (including `DATABASE_URL`, **`DIRECT_URL`**, `AMAZON_PARTNER_TAG`, `CRON_SECRET`, `NEXT_PUBLIC_SITE_URL`). On Vercel you can set `DIRECT_URL` equal to `DATABASE_URL` if you use a single URL.
-3. Deploy. The **`build`** script runs **`prisma migrate deploy`** so tables are created from Vercel’s network even if your Windows PC sometimes hits `P1001` locally. Cron jobs from `vercel.json` apply to **production** deployments on [supported plans](https://vercel.com/docs/cron-jobs).
+3. Deploy. The **`build`** script runs **`prisma migrate deploy`** then **`prisma db seed`** so sample products exist in production (homepage + search work out of the box). Cron jobs from `vercel.json` apply to **production** deployments on [supported plans](https://vercel.com/docs/cron-jobs).
 
 **Local vs Vercel:** Connection errors on your laptop (VPN, ISP, antivirus, `channel_binding`, password typos) are **local to that machine**. Vercel’s build and serverless runtime use **different networks**; reaching Neon is **usually more reliable** there—as long as env vars are correct.
 

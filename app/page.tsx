@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { AffiliateDisclosure } from "@/components/AffiliateDisclosure";
 import { ProductCard } from "@/components/ProductCard";
 import { prisma } from "@/lib/prisma";
 
@@ -40,8 +39,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <AffiliateDisclosure />
-
       <section className="space-y-4">
         <div className="flex items-end justify-between gap-4">
           <h2 className="font-display text-2xl font-semibold text-ink">Fresh from the database</h2>
@@ -49,11 +46,19 @@ export default async function HomePage() {
             View all
           </Link>
         </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {featured.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
+        {featured.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-ink/20 bg-surface-subtle px-4 py-10 text-center text-ink-muted">
+            No products in the database yet. After deploy, the build runs <code className="text-ink">prisma db seed</code>;
+            if this stays empty, check Vercel build logs for seed errors or run{" "}
+            <code className="text-ink">npm run db:seed</code> locally against the same <code className="text-ink">DATABASE_URL</code>.
+          </p>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {featured.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
