@@ -53,8 +53,12 @@ async function main() {
   const stubAsins = asinsForStubSeed(parseAsinList(process.env.INGEST_ASINS));
   for (const asin of stubAsins) {
     const slug = `asin-${asin.toLowerCase()}`;
+    // Upsert by (merchantId, externalId): old seed rows used human slugs (e.g. echo-dot-5th-gen) for the same ASIN;
+    // upserting only by slug would INSERT and hit P2002 on externalId.
     await prisma.product.upsert({
-      where: { slug },
+      where: {
+        merchantId_externalId: { merchantId: amazon.id, externalId: asin },
+      },
       create: {
         merchantId: amazon.id,
         externalId: asin,
@@ -68,6 +72,7 @@ async function main() {
         imageSource: "none",
       },
       update: {
+        slug,
         externalId: asin,
       },
     });
