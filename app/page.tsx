@@ -56,9 +56,9 @@ export default async function HomePage() {
         </div>
         {featured.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-line bg-surface-subtle px-4 py-10 text-center text-ink-muted">
-            Nothing to show until at least one product is ingested from <strong className="text-ink">SerpApi</strong> or{" "}
-            <strong className="text-ink">Amazon PA-API</strong> (daily cron). Add ASIN stubs with{" "}
-            <code className="text-ink">INGEST_ASINS</code> in seed env, run sync, then listings appear here.
+            No ingest-visible products yet. With <code className="text-ink">SERPAPI_API_KEY</code> on Vercel,{" "}
+            <code className="text-ink">prisma db seed</code> during build tries SerpApi for up to five stubs; otherwise
+            wait for the daily cron or check build logs for SerpApi errors.
           </p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

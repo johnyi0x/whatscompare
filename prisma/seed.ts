@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { bootstrapSerpApiIfEmpty, DEFAULT_SERAPI_BOOTSTRAP_ASINS } from "../lib/serpapi-sync";
 
 const prisma = new PrismaClient();
 
@@ -10,10 +11,28 @@ function parseAsinList(raw: string | undefined): string[] {
     .filter((a) => /^[A-Z0-9]{10}$/.test(a));
 }
 
+/** Unique ASINs for stubs: env list, padded to at least 5 with defaults when env has fewer than 5. */
+function asinsForStubSeed(envParsed: string[]): string[] {
+  const fromEnv = Array.from(new Set(envParsed));
+  if (fromEnv.length >= 5) return fromEnv;
+
+  const seen = new Set(fromEnv);
+  const out = [...fromEnv];
+  for (const a of DEFAULT_SERAPI_BOOTSTRAP_ASINS) {
+    if (out.length >= 5) break;
+    if (!seen.has(a)) {
+      seen.add(a);
+      out.push(a);
+    }
+  }
+  return out;
+}
+
 /**
- * Default: no sample products (catalog is API-driven). Optional:
- * - INGEST_ASINS=B0XXX,B0YYY — stub rows for daily SerpApi / PA-API cron.
- * - RESET_CATALOG_ON_SEED=1 — one-shot wipe of products/offers/history/posts (then remove env var).
+ * Optional:
+ * - INGEST_ASINS — extra ASIN stubs (merged with defaults until at least 5 when fewer than 5 env ASINs).
+ * - RESET_CATALOG_ON_SEED=1 — one-shot wipe (then remove env var).
+ * With SERPAPI_API_KEY on Vercel build, seed calls SerpApi for up to 5 never-synced stubs when the catalog has no ingest-visible products yet.
  */
 async function main() {
   if (process.env.RESET_CATALOG_ON_SEED === "1") {
@@ -31,8 +50,8 @@ async function main() {
     update: {},
   });
 
-  const ingestAsins = parseAsinList(process.env.INGEST_ASINS);
-  for (const asin of ingestAsins) {
+  const stubAsins = asinsForStubSeed(parseAsinList(process.env.INGEST_ASINS));
+  for (const asin of stubAsins) {
     const slug = `asin-${asin.toLowerCase()}`;
     await prisma.product.upsert({
       where: { slug },
@@ -54,8 +73,19 @@ async function main() {
     });
   }
 
+  const boot = await bootstrapSerpApiIfEmpty(5);
+  if (!boot.skipped) {
+    console.log(`SerpApi bootstrap: updated ${boot.updated} product(s).`, boot.errors.length ? boot.errors : "");
+  } else if (boot.reason === "no_api_key") {
+    console.log("SerpApi bootstrap skipped: SERPAPI_API_KEY not set.");
+  } else if (boot.reason === "already_ingested") {
+    console.log("SerpApi bootstrap skipped: catalog already has ingest-visible products.");
+  } else if (boot.reason === "disabled") {
+    console.log("SerpApi bootstrap skipped: SERPAPI_BOOTSTRAP_ON_SEED=0.");
+  }
+
   console.log(
-    `Seed complete: Amazon merchant; ${ingestAsins.length} ASIN stub(s) from INGEST_ASINS (if any). No demo products.`
+    `Seed complete: Amazon merchant; ${stubAsins.length} product stub(s); bootstrap=${boot.skipped ? `skipped (${boot.reason})` : `ok (${boot.updated} ingested)`}.`
   );
 }
 

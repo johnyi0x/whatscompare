@@ -1,7 +1,18 @@
+import type { Merchant, Product } from "@prisma/client";
+import { ingestedProductWhere } from "./ingested-products";
 import { prisma } from "./prisma";
 import { buildAmazonProductUrl, getPartnerTagOrPlaceholder } from "./amazon-affiliate";
 
 const SERPAPI_SEARCH = "https://serpapi.com/search.json";
+
+/** Default ASINs for stub seed + first-run SerpApi ingest when `INGEST_ASINS` is empty or short. */
+export const DEFAULT_SERAPI_BOOTSTRAP_ASINS = [
+  "B0CHLMJMWL",
+  "B08H83C89C",
+  "B0CMV9PYRQ",
+  "B09B8V1LZ3",
+  "B0CGJQG1TW",
+] as const;
 
 type ProductResults = {
   asin?: string;
@@ -61,6 +72,129 @@ export async function fetchAmazonProductFromSerpApi(asin: string): Promise<{
   return { ok: true, data: json.product_results };
 }
 
+type ProductWithMerchant = Product & { merchant: Merchant };
+
+async function persistSerpApiResult(
+  product: ProductWithMerchant,
+  pr: ProductResults,
+  tag: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const asin = product.externalId;
+  const thumb = pr.thumbnails?.[0] ?? null;
+  const price = pr.extracted_price;
+  if (price == null || Number.isNaN(price)) {
+    return { ok: false, error: "missing extracted_price" };
+  }
+
+  const listPrice = pr.extracted_old_price ?? null;
+  const dealParts = (pr.badges ?? []).slice(0, 2);
+  const dealLabel = dealParts.length ? dealParts.join(" · ") : null;
+  const affiliateUrl = buildAmazonProductUrl(asin, { partnerTag: tag });
+  const now = new Date();
+
+  try {
+    await prisma.$transaction([
+      prisma.product.update({
+        where: { id: product.id },
+        data: {
+          title: pr.title ?? product.title,
+          description: pr.description ?? product.description,
+          imageUrl: thumb ?? product.imageUrl,
+          imageSource: thumb ? "serpapi" : product.imageSource,
+          serpapiSyncedAt: now,
+        },
+      }),
+      prisma.offer.create({
+        data: {
+          productId: product.id,
+          merchantId: product.merchantId,
+          priceAmount: price,
+          currency: "USD",
+          listPriceAmount: listPrice,
+          dealLabel,
+          affiliateUrl,
+          fetchedAt: now,
+          source: "serpapi",
+          availabilityNote: "Price from SerpApi Amazon Product engine; verify on Amazon before purchase.",
+          lastSyncedAt: now,
+        },
+      }),
+      prisma.priceHistory.create({
+        data: {
+          productId: product.id,
+          priceAmount: price,
+          currency: "USD",
+          source: "serpapi",
+        },
+      }),
+    ]);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
+ * After seed: if nothing is ingest-visible yet and SerpApi is configured, fetch up to `max` Amazon stubs.
+ * Set SERPAPI_BOOTSTRAP_ON_SEED=0 to skip (e.g. avoid API use on local seed).
+ */
+export async function bootstrapSerpApiIfEmpty(max = 5): Promise<{
+  updated: number;
+  errors: string[];
+  skipped: boolean;
+  reason?: string;
+}> {
+  const errors: string[] = [];
+  if (process.env.SERPAPI_BOOTSTRAP_ON_SEED === "0") {
+    return { updated: 0, errors, skipped: true, reason: "disabled" };
+  }
+  if (!serpApiConfigured()) {
+    return { updated: 0, errors, skipped: true, reason: "no_api_key" };
+  }
+
+  const ingested = await prisma.product.count({ where: ingestedProductWhere });
+  if (ingested > 0) {
+    return { updated: 0, errors, skipped: true, reason: "already_ingested" };
+  }
+
+  const delayMs = Math.max(0, Number(process.env.SERPAPI_REQUEST_DELAY_MS || 400));
+  const cap = Math.min(25, Math.max(1, max));
+  const candidates = await prisma.product.findMany({
+    where: { merchant: { slug: "amazon" }, serpapiSyncedAt: null },
+    orderBy: { updatedAt: "asc" },
+    take: cap,
+    include: { merchant: true },
+  });
+
+  if (candidates.length === 0) {
+    return { updated: 0, errors, skipped: true, reason: "no_stub_products" };
+  }
+
+  const tag = getPartnerTagOrPlaceholder();
+  let updated = 0;
+
+  for (const product of candidates) {
+    const asin = product.externalId;
+    const result = await fetchAmazonProductFromSerpApi(asin);
+    if (!result.ok) {
+      errors.push(`${asin}: ${result.error}`);
+      if (delayMs) await sleep(delayMs);
+      continue;
+    }
+
+    const saved = await persistSerpApiResult(product, result.data, tag);
+    if (!saved.ok) {
+      errors.push(`${asin}: ${saved.error}`);
+    } else {
+      updated += 1;
+    }
+
+    if (delayMs) await sleep(delayMs);
+  }
+
+  return { updated, errors, skipped: false };
+}
+
 /**
  * DB-first refresh: only products stale by TTL, capped per run. Never call from page render.
  */
@@ -111,60 +245,11 @@ export async function syncStaleProductsFromSerpApi(): Promise<{
       continue;
     }
 
-    const pr = result.data;
-    const thumb = pr.thumbnails?.[0] ?? null;
-    const price = pr.extracted_price;
-    if (price == null || Number.isNaN(price)) {
-      errors.push(`${asin}: missing extracted_price`);
-      if (delayMs) await sleep(delayMs);
-      continue;
-    }
-
-    const listPrice = pr.extracted_old_price ?? null;
-    const dealParts = (pr.badges ?? []).slice(0, 2);
-    const dealLabel = dealParts.length ? dealParts.join(" · ") : null;
-    const affiliateUrl = buildAmazonProductUrl(asin, { partnerTag: tag });
-    const now = new Date();
-
-    try {
-      await prisma.$transaction([
-        prisma.product.update({
-          where: { id: product.id },
-          data: {
-            title: pr.title ?? product.title,
-            description: pr.description ?? product.description,
-            imageUrl: thumb ?? product.imageUrl,
-            imageSource: thumb ? "serpapi" : product.imageSource,
-            serpapiSyncedAt: now,
-          },
-        }),
-        prisma.offer.create({
-          data: {
-            productId: product.id,
-            merchantId: product.merchantId,
-            priceAmount: price,
-            currency: "USD",
-            listPriceAmount: listPrice,
-            dealLabel,
-            affiliateUrl,
-            fetchedAt: now,
-            source: "serpapi",
-            availabilityNote: "Price from SerpApi Amazon Product engine; verify on Amazon before purchase.",
-            lastSyncedAt: now,
-          },
-        }),
-        prisma.priceHistory.create({
-          data: {
-            productId: product.id,
-            priceAmount: price,
-            currency: "USD",
-            source: "serpapi",
-          },
-        }),
-      ]);
+    const saved = await persistSerpApiResult(product, result.data, tag);
+    if (!saved.ok) {
+      errors.push(`${asin}: ${saved.error}`);
+    } else {
       updated += 1;
-    } catch (e) {
-      errors.push(`${asin}: ${e instanceof Error ? e.message : String(e)}`);
     }
 
     if (delayMs) await sleep(delayMs);

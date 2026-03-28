@@ -58,7 +58,7 @@ npx prisma migrate deploy
 npm run db:seed
 ```
 
-**Vercel:** `npm run build` already runs migrate + seed. Seed keeps the **Amazon merchant** and optional **ASIN stubs** from `INGEST_ASINS` (for SerpApi/PA-API cron)—it no longer loads demo products with fake prices. One-time wipe: set `RESET_CATALOG_ON_SEED=1` for a single deploy, then remove it.
+**Vercel:** `npm run build` already runs migrate + seed. Seed upserts at least **five Amazon ASIN stubs** (your `INGEST_ASINS` plus defaults). If `SERPAPI_API_KEY` is set and the DB has **no ingest-visible products** yet, seed also calls SerpApi for up to **five** of those stubs so the homepage isn’t empty before the first cron. Disable with `SERPAPI_BOOTSTRAP_ON_SEED=0`. One-time wipe: `RESET_CATALOG_ON_SEED=1` for a single deploy, then remove it.
 
 For local iterative schema tweaks without migration files:
 
