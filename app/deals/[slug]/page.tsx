@@ -112,9 +112,8 @@ export default async function DealDetailPage({ params }: Props) {
           <div className="rounded-xl border border-line bg-surface p-5 shadow-sleek dark:shadow-sleek-dark">
             <h2 className="font-display text-lg font-semibold text-ink">Where to buy</h2>
             <p className="mt-1 text-sm text-ink-muted">
-              Prices from Amazon, Best Buy, and Walmart. We skip used, refurbished, and financing-only &ldquo;per
-              month&rdquo; lines when we can detect them, and we ignore prices that look wildly out of line compared to
-              other major stores for the same item.
+              Live links to Amazon, Best Buy, and Walmart. We compare full purchase prices from these retailers when
+              available.
             </p>
             <ul className="mt-4 space-y-2">
               {listingsSorted.map((l) => (

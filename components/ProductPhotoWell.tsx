@@ -14,9 +14,7 @@ export function ProductPhotoWell({
   hasImage: boolean;
 }) {
   return (
-    <div
-      className={`relative aspect-square overflow-hidden rounded-2xl border border-line ${className}`.trim()}
-    >
+    <div className={`relative aspect-square w-full overflow-hidden ${className}`.trim()}>
       <div
         className={`absolute inset-0 flex items-center justify-center p-3 sm:p-4 ${
           hasImage ? "bg-white" : "bg-surface-subtle"
