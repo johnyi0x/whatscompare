@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/react";
 import { DM_Sans, Fraunces } from "next/font/google";
 import { AffiliateDisclosure } from "@/components/AffiliateDisclosure";
 import { BrandWordmark } from "@/components/BrandWordmark";
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </footer>
         </Providers>
+        <Analytics />
       </body>
     </html>
   );

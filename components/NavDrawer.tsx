@@ -41,7 +41,7 @@ export function NavDrawer() {
       {/* Dim scrim only — no backdrop-blur (avoids color fringing / “glow” next to the header’s blur) */}
       <button
         type="button"
-        className="absolute inset-0 z-[1] bg-black/55 dark:bg-black/70"
+        className="absolute inset-0 z-[1] bg-transparent dark:bg-black/70"
         aria-label="Close menu"
         onClick={close}
       />
