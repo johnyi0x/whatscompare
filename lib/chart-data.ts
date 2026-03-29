@@ -1,11 +1,13 @@
-import { sortStoreKeysForChart } from "./retail-listings";
+import { ALLOWED_RETAIL_KEYS, sortStoreKeysForChart } from "./retail-listings";
 
 /** Pivot append-only snapshots into Recharts-friendly rows (one row per day, one numeric column per store = that day’s min price for the store). */
 export function buildMultiStoreLineSeries(
   snapshots: { recordedAt: Date; store: string; price: unknown }[]
 ): { storeKeys: string[]; points: Record<string, string | number>[] } {
+  const allowed = new Set<string>(ALLOWED_RETAIL_KEYS);
   const dayStore = new Map<string, Map<string, number>>();
   for (const s of snapshots) {
+    if (!allowed.has(s.store)) continue;
     const day = s.recordedAt.toISOString().slice(0, 10);
     if (!dayStore.has(day)) dayStore.set(day, new Map());
     const m = dayStore.get(day)!;

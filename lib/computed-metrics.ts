@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { ALLOWED_RETAIL_KEYS } from "./retail-listings";
 import { prisma } from "./prisma";
 
 function mean(nums: number[]): number | null {
@@ -23,12 +24,16 @@ export async function recomputeProductMetrics(productId: string): Promise<void> 
   const d14 = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
   const snaps = await prisma.priceSnapshot.findMany({
-    where: { productId, recordedAt: { gte: d90 } },
+    where: {
+      productId,
+      recordedAt: { gte: d90 },
+      store: { in: [...ALLOWED_RETAIL_KEYS] },
+    },
     orderBy: { recordedAt: "asc" },
   });
 
   const listings = await prisma.productStoreListing.findMany({
-    where: { productId },
+    where: { productId, store: { in: [...ALLOWED_RETAIL_KEYS] } },
   });
 
   const currentLow =

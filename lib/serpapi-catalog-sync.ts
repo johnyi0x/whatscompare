@@ -3,11 +3,13 @@ import { Prisma } from "@prisma/client";
 import { recomputeProductMetrics } from "./computed-metrics";
 import { prisma } from "./prisma";
 import {
+  canonicalAllowedRetailKey,
   filterTrustedRetailListings,
   inferItemCondition,
+  looksLikeMonthlyInstallment,
   type TrustedListingInput,
 } from "./retail-listings";
-import { inferInStockFromDetails, storeKeyFromSerpName } from "./store-key";
+import { inferInStockFromDetails } from "./store-key";
 
 const SERP = "https://serpapi.com/search.json";
 
@@ -17,6 +19,10 @@ export function serpApiConfigured(): boolean {
 
 type ShoppingItem = {
   title?: string;
+  link?: string;
+  source?: string;
+  price?: string;
+  extracted_price?: number;
   product_id?: string;
   immersive_product_page_token?: string;
   thumbnail?: string;
@@ -128,6 +134,66 @@ function parseStores(product: Record<string, unknown>): ImmersiveStore[] {
   return Array.isArray(s) ? (s as ImmersiveStore[]) : [];
 }
 
+/**
+ * Extra Google Shopping query when immersive omits Amazon — counts as 1 SerpApi call.
+ * Set SERPAPI_AMAZON_FALLBACK=0 to disable and save quota.
+ */
+async function fetchAmazonListingFallback(
+  shoppingQuery: string,
+  shoppingMatchHint: string | null
+): Promise<{ row: TrustedListingInput | null; apiCalls: number }> {
+  if (process.env.SERPAPI_AMAZON_FALLBACK === "0") {
+    return { row: null, apiCalls: 0 };
+  }
+  const shop = await fetchGoogleShopping(`${shoppingQuery} amazon`);
+  if (!shop.ok) {
+    return { row: null, apiCalls: 1 };
+  }
+  const amazonish = shop.items.filter((i) => {
+    const l = (i.link ?? "").toLowerCase();
+    return (
+      l.includes("amazon.com/") ||
+      l.includes("amazon.co.uk/") ||
+      l.includes("amazon.ca/") ||
+      l.includes("amazon.de/") ||
+      /\/dp\/[a-z0-9]+/i.test(l) ||
+      /\/gp\/product\//i.test(l)
+    );
+  });
+  const item = pickShoppingItem(amazonish, shoppingMatchHint) ?? amazonish[0];
+  if (!item?.link?.trim()) {
+    return { row: null, apiCalls: 1 };
+  }
+  if (looksLikeMonthlyInstallment([item.title, item.price, item.source])) {
+    return { row: null, apiCalls: 1 };
+  }
+  const price =
+    typeof item.extracted_price === "number" && Number.isFinite(item.extracted_price)
+      ? item.extracted_price
+      : parseMoney(item.price);
+  if (price == null) {
+    return { row: null, apiCalls: 1 };
+  }
+  const store = canonicalAllowedRetailKey(item.source ?? item.title ?? "Amazon", item.link);
+  if (store !== "amazon") {
+    return { row: null, apiCalls: 1 };
+  }
+  return {
+    row: {
+      store: "amazon",
+      storeLabel: "Amazon",
+      storeUrl: item.link.trim(),
+      price,
+      regularPrice: null,
+      rating: null,
+      reviewCount: null,
+      inStock: true,
+      itemCondition: inferItemCondition([], item.title),
+    },
+    apiCalls: 1,
+  };
+}
+
 export type SyncOneResult = { productId: string; apiCalls: number; ok: boolean; error?: string };
 
 /**
@@ -180,17 +246,29 @@ export async function syncOneProduct(productId: string): Promise<SyncOneResult> 
 
   const parsed: TrustedListingInput[] = [];
   for (const st of stores) {
-    const name = st.name?.trim() || "unknown";
-    const store = storeKeyFromSerpName(name);
+    const name = st.name?.trim() || "";
+    const link = st.link?.trim() || "";
+    if (!name && !link) continue;
+    if (
+      looksLikeMonthlyInstallment([
+        st.price,
+        st.original_price,
+        ...(st.details_and_offers ?? []),
+      ])
+    ) {
+      continue;
+    }
+    const store = canonicalAllowedRetailKey(name || "Unknown", link || undefined);
+    if (!store) continue;
     const price = parseMoney(st.extracted_price) ?? parseMoney(st.price);
     if (price == null) continue;
     const reg = parseMoney(st.extracted_original_price) ?? parseMoney(st.original_price);
     const inStock = inferInStockFromDetails(st.details_and_offers);
-    const url = st.link?.trim() || "#";
+    const url = link || "#";
     const itemCondition = inferItemCondition(st.details_and_offers, name);
     parsed.push({
       store,
-      storeLabel: name,
+      storeLabel: name || store,
       storeUrl: url,
       price,
       regularPrice: reg,
@@ -201,7 +279,14 @@ export async function syncOneProduct(productId: string): Promise<SyncOneResult> 
     });
   }
 
-  const trusted = filterTrustedRetailListings(parsed);
+  let trusted = filterTrustedRetailListings(parsed);
+  if (!trusted.some((t) => t.store === "amazon")) {
+    const fb = await fetchAmazonListingFallback(p.shoppingQuery, p.shoppingMatchHint);
+    apiCalls += fb.apiCalls;
+    if (fb.row) {
+      trusted = filterTrustedRetailListings([...parsed, fb.row]);
+    }
+  }
   if (!trusted.length) {
     await prisma.productStoreListing.deleteMany({ where: { productId: p.id } });
     return {
@@ -298,8 +383,9 @@ export async function runTieredCatalogSync(): Promise<{
   for (const c of due) {
     if (apiCalls >= maxCalls) break;
     const remainingBudget = maxCalls - apiCalls;
-    // Worst case: shopping + immersive = 2
-    if (!c.immersivePageToken && remainingBudget < 2) break;
+    // Worst case: shopping + immersive + Amazon Shopping fallback = 3; with token: immersive + Amazon = 2
+    const minNeeded = c.immersivePageToken ? 2 : 3;
+    if (remainingBudget < minNeeded) break;
 
     const r = await syncOneProduct(c.id);
     apiCalls += r.apiCalls;
