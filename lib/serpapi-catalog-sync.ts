@@ -19,10 +19,16 @@ export function serpApiConfigured(): boolean {
 
 type ShoppingItem = {
   title?: string;
+  /** Direct retailer URL when present */
   link?: string;
+  /** Google Shopping product page (often no retailer hostname) */
+  product_link?: string;
+  tracking_link?: string;
   source?: string;
   price?: string;
   extracted_price?: number;
+  /** SerpApi may flag financing / per-month pricing */
+  installment?: string | Record<string, unknown> | boolean;
   product_id?: string;
   immersive_product_page_token?: string;
   thumbnail?: string;
@@ -134,9 +140,121 @@ function parseStores(product: Record<string, unknown>): ImmersiveStore[] {
   return Array.isArray(s) ? (s as ImmersiveStore[]) : [];
 }
 
+function extractDestinationFromGoogleRedirect(href: string): string | null {
+  try {
+    const u = new URL(href);
+    const adurl = u.searchParams.get("adurl") || u.searchParams.get("url");
+    if (adurl) {
+      const decoded = decodeURIComponent(adurl.replace(/\+/g, " "));
+      if (/^https?:\/\//i.test(decoded)) return decoded;
+    }
+    const q = u.searchParams.get("q");
+    if (q && /^https?:\/\//i.test(q)) return decodeURIComponent(q.replace(/\+/g, " "));
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+/** SerpApi shopping rows often use `product_link` / `tracking_link` instead of `link`. */
+function retailerUrlFromShoppingItem(item: ShoppingItem): string | null {
+  const direct = item.link?.trim();
+  if (direct && /\.amazon\./i.test(direct) && !/google\.com\/shopping\/product/i.test(direct)) {
+    return direct;
+  }
+  if (direct && /\/dp\/|\/gp\/product\//i.test(direct) && !/google\.com\/shopping/i.test(direct)) {
+    return direct;
+  }
+  const tr = item.tracking_link?.trim();
+  if (tr) {
+    const dest = extractDestinationFromGoogleRedirect(tr);
+    if (dest && /\.amazon\./i.test(dest)) return dest;
+  }
+  const pl = item.product_link?.trim();
+  if (pl) {
+    const dest = extractDestinationFromGoogleRedirect(pl);
+    if (dest && /\.amazon\./i.test(dest)) return dest;
+  }
+  if (direct && !/google\.com\/shopping\/product/i.test(direct)) return direct || null;
+  return null;
+}
+
+function shoppingItemHasInstallmentFlag(item: ShoppingItem): boolean {
+  const inst = item.installment;
+  if (inst != null && inst !== false && inst !== "") return true;
+  return looksLikeMonthlyInstallment([item.title, item.price, item.source]);
+}
+
+type AmazonOrganic = {
+  sponsored?: boolean;
+  title?: string;
+  link_clean?: string;
+  link?: string;
+  extracted_price?: number;
+  price?: string;
+};
+
 /**
- * Extra Google Shopping query when immersive omits Amazon — counts as 1 SerpApi call.
- * Set SERPAPI_AMAZON_FALLBACK=0 to disable and save quota.
+ * Amazon Search API — real amazon.com /dp/ URLs + prices. Set SERPAPI_AMAZON_ENGINE=0 to skip.
+ */
+async function fetchAmazonFromAmazonEngine(
+  shoppingQuery: string,
+  shoppingMatchHint: string | null
+): Promise<{ row: TrustedListingInput | null; apiCalls: number }> {
+  if (process.env.SERPAPI_AMAZON_ENGINE === "0") {
+    return { row: null, apiCalls: 0 };
+  }
+  const domain = process.env.AMAZON_DOMAIN?.trim() || "amazon.com";
+  const r = await serpGet({
+    engine: "amazon",
+    k: shoppingQuery,
+    amazon_domain: domain,
+    device: "desktop",
+    no_cache: "false",
+  });
+  if (!r.ok) return { row: null, apiCalls: 1 };
+  const org = r.json.organic_results;
+  if (!Array.isArray(org) || org.length === 0) return { row: null, apiCalls: 1 };
+
+  const list = org as AmazonOrganic[];
+  const organicFirst = list.filter((x) => !x.sponsored);
+  const pool = organicFirst.length ? organicFirst : list;
+  const h = shoppingMatchHint?.trim().toLowerCase();
+  let pick = h ? pool.find((x) => x.title?.toLowerCase().includes(h)) : null;
+  pick ??= pool[0];
+
+  const url = pick?.link_clean?.trim() || pick?.link?.trim();
+  const price =
+    typeof pick?.extracted_price === "number" && Number.isFinite(pick.extracted_price)
+      ? pick.extracted_price
+      : parseMoney(pick?.price);
+  if (!url || price == null) return { row: null, apiCalls: 1 };
+  if (!/amazon\./i.test(url) || (!/\/dp\//i.test(url) && !/\/gp\/product\//i.test(url))) {
+    return { row: null, apiCalls: 1 };
+  }
+  if (looksLikeMonthlyInstallment([pick.title, pick.price])) {
+    return { row: null, apiCalls: 1 };
+  }
+
+  return {
+    row: {
+      store: "amazon",
+      storeLabel: "Amazon",
+      storeUrl: url,
+      price,
+      regularPrice: null,
+      rating: null,
+      reviewCount: null,
+      inStock: true,
+      itemCondition: inferItemCondition([], pick.title),
+    },
+    apiCalls: 1,
+  };
+}
+
+/**
+ * When immersive omits Amazon: Google Shopping (… amazon) then SerpApi Amazon Search for a real /dp/ link.
+ * SERPAPI_AMAZON_FALLBACK=0 disables both steps. Shopping step alone counts 1 call; engine adds +1 if needed.
  */
 async function fetchAmazonListingFallback(
   shoppingQuery: string,
@@ -145,53 +263,51 @@ async function fetchAmazonListingFallback(
   if (process.env.SERPAPI_AMAZON_FALLBACK === "0") {
     return { row: null, apiCalls: 0 };
   }
-  const shop = await fetchGoogleShopping(`${shoppingQuery} amazon`);
-  if (!shop.ok) {
-    return { row: null, apiCalls: 1 };
+
+  let apiCalls = 0;
+  const shop = await fetchGoogleShopping(`${shoppingQuery} amazon.com`);
+  apiCalls += 1;
+  if (shop.ok) {
+    const candidates: ShoppingItem[] = [];
+    for (const raw of shop.items) {
+      const item = raw as ShoppingItem;
+      if (shoppingItemHasInstallmentFlag(item)) continue;
+      const url = retailerUrlFromShoppingItem(item);
+      if (!url || !/\.amazon\./i.test(url)) continue;
+      if (canonicalAllowedRetailKey(item.source ?? "Amazon", url) !== "amazon") continue;
+      const price =
+        typeof item.extracted_price === "number" && Number.isFinite(item.extracted_price)
+          ? item.extracted_price
+          : parseMoney(item.price);
+      if (price == null) continue;
+      candidates.push(item);
+    }
+    const item = pickShoppingItem(candidates, shoppingMatchHint) ?? candidates[0];
+    if (item) {
+      const url = retailerUrlFromShoppingItem(item)!;
+      const price =
+        typeof item.extracted_price === "number" && Number.isFinite(item.extracted_price)
+          ? item.extracted_price
+          : parseMoney(item.price)!;
+      return {
+        row: {
+          store: "amazon",
+          storeLabel: "Amazon",
+          storeUrl: url,
+          price,
+          regularPrice: null,
+          rating: null,
+          reviewCount: null,
+          inStock: true,
+          itemCondition: inferItemCondition([], item.title),
+        },
+        apiCalls,
+      };
+    }
   }
-  const amazonish = shop.items.filter((i) => {
-    const l = (i.link ?? "").toLowerCase();
-    return (
-      l.includes("amazon.com/") ||
-      l.includes("amazon.co.uk/") ||
-      l.includes("amazon.ca/") ||
-      l.includes("amazon.de/") ||
-      /\/dp\/[a-z0-9]+/i.test(l) ||
-      /\/gp\/product\//i.test(l)
-    );
-  });
-  const item = pickShoppingItem(amazonish, shoppingMatchHint) ?? amazonish[0];
-  if (!item?.link?.trim()) {
-    return { row: null, apiCalls: 1 };
-  }
-  if (looksLikeMonthlyInstallment([item.title, item.price, item.source])) {
-    return { row: null, apiCalls: 1 };
-  }
-  const price =
-    typeof item.extracted_price === "number" && Number.isFinite(item.extracted_price)
-      ? item.extracted_price
-      : parseMoney(item.price);
-  if (price == null) {
-    return { row: null, apiCalls: 1 };
-  }
-  const store = canonicalAllowedRetailKey(item.source ?? item.title ?? "Amazon", item.link);
-  if (store !== "amazon") {
-    return { row: null, apiCalls: 1 };
-  }
-  return {
-    row: {
-      store: "amazon",
-      storeLabel: "Amazon",
-      storeUrl: item.link.trim(),
-      price,
-      regularPrice: null,
-      rating: null,
-      reviewCount: null,
-      inStock: true,
-      itemCondition: inferItemCondition([], item.title),
-    },
-    apiCalls: 1,
-  };
+
+  const engine = await fetchAmazonFromAmazonEngine(shoppingQuery, shoppingMatchHint);
+  return { row: engine.row, apiCalls: apiCalls + engine.apiCalls };
 }
 
 export type SyncOneResult = { productId: string; apiCalls: number; ok: boolean; error?: string };
@@ -383,8 +499,8 @@ export async function runTieredCatalogSync(): Promise<{
   for (const c of due) {
     if (apiCalls >= maxCalls) break;
     const remainingBudget = maxCalls - apiCalls;
-    // Worst case: shopping + immersive + Amazon Shopping fallback = 3; with token: immersive + Amazon = 2
-    const minNeeded = c.immersivePageToken ? 2 : 3;
+    // Worst case: shopping + immersive + Google Shopping (amazon) + Amazon Search engine = 4; with token: 3
+    const minNeeded = c.immersivePageToken ? 3 : 4;
     if (remainingBudget < minNeeded) break;
 
     const r = await syncOneProduct(c.id);

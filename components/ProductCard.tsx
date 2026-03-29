@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Product, ProductStoreListing } from "@prisma/client";
 import { displayLabelForStore, sortListingsAmazonFirstThenPrice } from "@/lib/retail-listings";
 import { ProductImage } from "./ProductImage";
+import { ProductPhotoWell } from "./ProductPhotoWell";
 
 export type ProductCardModel = Product & { listings: ProductStoreListing[] };
 
@@ -37,19 +38,19 @@ export function ProductCard({ product }: { product: ProductCardModel }) {
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-sleek transition hover:border-accent/40 hover:shadow-lg dark:shadow-sleek-dark">
       <Link href={`/deals/${product.slug}`} className="block">
-        <div className="relative aspect-square bg-surface-subtle">
+        <ProductPhotoWell hasImage={Boolean(img)}>
           {img ? (
             <ProductImage
               src={img}
               alt={product.title}
-              className="absolute inset-0 h-full w-full object-contain p-3 transition duration-300 group-hover:scale-[1.02]"
+              className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.02]"
             />
           ) : (
             <div className="flex h-full items-center justify-center px-4 text-center text-sm text-ink-muted">
               Image after first price sync
             </div>
           )}
-        </div>
+        </ProductPhotoWell>
       </Link>
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex flex-wrap items-center gap-2">

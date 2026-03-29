@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductCharts } from "@/components/ProductCharts";
 import { ProductImage } from "@/components/ProductImage";
+import { affiliateOutboundUrl } from "@/lib/affiliate-url";
 import { buildMultiStoreLineSeries } from "@/lib/chart-data";
 import { prisma } from "@/lib/prisma";
-import { displayLabelForStore, sortListingsAmazonFirstThenPrice } from "@/lib/retail-listings";
+import { ALLOWED_RETAIL_KEYS, displayLabelForStore, sortListingsAmazonFirstThenPrice } from "@/lib/retail-listings";
+import { ProductPhotoWell } from "@/components/ProductPhotoWell";
 
 type Props = { params: { slug: string } };
 
@@ -26,7 +28,11 @@ export default async function DealDetailPage({ params }: Props) {
 
   const since = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000);
   const snapshots = await prisma.priceSnapshot.findMany({
-    where: { productId: product.id, recordedAt: { gte: since } },
+    where: {
+      productId: product.id,
+      recordedAt: { gte: since },
+      store: { in: [...ALLOWED_RETAIL_KEYS] },
+    },
     orderBy: { recordedAt: "asc" },
     take: 8000,
   });
@@ -57,13 +63,13 @@ export default async function DealDetailPage({ params }: Props) {
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-2">
-        <div className="relative aspect-square overflow-hidden rounded-2xl border border-line bg-surface-subtle">
+        <ProductPhotoWell hasImage={Boolean(img)} className="rounded-2xl border border-line">
           {img ? (
-            <ProductImage src={img} alt={product.title} priority className="absolute inset-0 h-full w-full object-contain p-4" />
+            <ProductImage src={img} alt={product.title} priority className="h-full w-full object-contain" />
           ) : (
             <div className="flex h-full items-center justify-center text-ink-muted">Image after first sync</div>
           )}
-        </div>
+        </ProductPhotoWell>
 
         <div className="space-y-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-accent">Electronics · multi-store</p>
@@ -96,25 +102,25 @@ export default async function DealDetailPage({ params }: Props) {
 
           {product.cheapestStoreMostOften && product.cheapestStoreWinPct != null ? (
             <p className="text-sm text-ink-muted">
-              <span className="font-medium text-ink">
-                {displayLabelForStore(product.cheapestStoreMostOften)}
-              </span>{" "}
-              had the lowest price in {Number(product.cheapestStoreWinPct).toFixed(0)}% of snapshots (growing as data
-              stacks).
+              Over recent history,{" "}
+              <span className="font-medium text-ink">{displayLabelForStore(product.cheapestStoreMostOften)}</span> most
+              often had the lowest price we recorded ({Number(product.cheapestStoreWinPct).toFixed(0)}% of the time). This
+              improves as we collect more checks.
             </p>
           ) : null}
 
           <div className="rounded-xl border border-line bg-surface p-5 shadow-sleek dark:shadow-sleek-dark">
-            <h2 className="font-display text-lg font-semibold text-ink">Buy links (Amazon first, then by price)</h2>
-            <p className="mt-1 text-xs text-ink-muted">
-              Only Amazon, Best Buy, and Walmart offers are saved. Used/refurb listings and obvious outlier prices are
-              dropped when multiple stores disagree. Add affiliate tags to URLs where your programs allow.
+            <h2 className="font-display text-lg font-semibold text-ink">Where to buy</h2>
+            <p className="mt-1 text-sm text-ink-muted">
+              Prices from Amazon, Best Buy, and Walmart. We skip used, refurbished, and financing-only &ldquo;per
+              month&rdquo; lines when we can detect them, and we ignore prices that look wildly out of line compared to
+              other major stores for the same item.
             </p>
             <ul className="mt-4 space-y-2">
               {listingsSorted.map((l) => (
                 <li key={l.id}>
                   <a
-                    href={l.storeUrl}
+                    href={affiliateOutboundUrl(l.store, l.storeUrl)}
                     target="_blank"
                     rel="nofollow sponsored noopener noreferrer"
                     className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition hover:border-accent ${
