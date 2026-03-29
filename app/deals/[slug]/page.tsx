@@ -4,6 +4,7 @@ import { ProductCharts } from "@/components/ProductCharts";
 import { ProductImage } from "@/components/ProductImage";
 import { buildMultiStoreLineSeries } from "@/lib/chart-data";
 import { prisma } from "@/lib/prisma";
+import { displayLabelForStore, sortListingsAmazonFirstThenPrice } from "@/lib/retail-listings";
 
 type Props = { params: { slug: string } };
 
@@ -32,10 +33,13 @@ export default async function DealDetailPage({ params }: Props) {
 
   const { storeKeys, points } = buildMultiStoreLineSeries(snapshots);
 
-  const listingsSorted = [...product.listings].sort((a, b) => Number(a.currentPrice) - Number(b.currentPrice));
-  const minP = listingsSorted[0] ? Number(listingsSorted[0].currentPrice) : null;
+  const listingsSorted = sortListingsAmazonFirstThenPrice(product.listings);
+  const minP =
+    listingsSorted.length > 0
+      ? Math.min(...listingsSorted.map((l) => Number(l.currentPrice)))
+      : null;
   const barData = listingsSorted.map((l) => ({
-    name: l.storeLabel ?? l.store,
+    name: l.storeLabel ?? displayLabelForStore(l.store),
     price: Number(l.currentPrice),
     isLow: minP != null && Number(l.currentPrice) === minP,
   }));
@@ -92,15 +96,19 @@ export default async function DealDetailPage({ params }: Props) {
 
           {product.cheapestStoreMostOften && product.cheapestStoreWinPct != null ? (
             <p className="text-sm text-ink-muted">
-              <span className="font-medium text-ink">{product.cheapestStoreMostOften}</span> had the lowest price in{" "}
-              {Number(product.cheapestStoreWinPct).toFixed(0)}% of snapshots (growing as data stacks).
+              <span className="font-medium text-ink">
+                {displayLabelForStore(product.cheapestStoreMostOften)}
+              </span>{" "}
+              had the lowest price in {Number(product.cheapestStoreWinPct).toFixed(0)}% of snapshots (growing as data
+              stacks).
             </p>
           ) : null}
 
           <div className="rounded-xl border border-line bg-surface p-5 shadow-sleek dark:shadow-sleek-dark">
-            <h2 className="font-display text-lg font-semibold text-ink">Buy links (sorted by price)</h2>
+            <h2 className="font-display text-lg font-semibold text-ink">Buy links (Amazon first, then by price)</h2>
             <p className="mt-1 text-xs text-ink-muted">
-              Links point to retailer pages from our last sync. Add your affiliate parameters where your programs allow.
+              Only Amazon, Best Buy, and Walmart offers are saved. Used/refurb listings and obvious outlier prices are
+              dropped when multiple stores disagree. Add affiliate tags to URLs where your programs allow.
             </p>
             <ul className="mt-4 space-y-2">
               {listingsSorted.map((l) => (
@@ -113,7 +121,18 @@ export default async function DealDetailPage({ params }: Props) {
                       minP != null && Number(l.currentPrice) === minP ? "border-accent/50 bg-accent/5" : "border-line"
                     }`}
                   >
-                    <span className="font-medium text-ink">{l.storeLabel ?? l.store}</span>
+                    <span className="font-medium text-ink">
+                      {l.store === "amazon" ? (
+                        <span className="text-accent">Amazon</span>
+                      ) : (
+                        (l.storeLabel ?? displayLabelForStore(l.store))
+                      )}
+                      {l.listingCondition && l.listingCondition !== "unknown" ? (
+                        <span className="ml-2 rounded bg-surface-subtle px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-ink-muted">
+                          {l.listingCondition}
+                        </span>
+                      ) : null}
+                    </span>
                     <span className="tabular-nums font-semibold text-ink">
                       {new Intl.NumberFormat("en-US", { style: "currency", currency: product.currency }).format(
                         Number(l.currentPrice)

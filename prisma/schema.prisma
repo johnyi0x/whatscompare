@@ -64,6 +64,8 @@ model ProductStoreListing {
   rating       Decimal? @db.Decimal(4, 2)
   reviewCount  Int?
   inStock      Boolean  @default(true)
+  /// new | used | refurbished | unknown — from SerpApi offer text; used/refurb not shown after filter.
+  listingCondition String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

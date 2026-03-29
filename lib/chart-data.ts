@@ -1,3 +1,5 @@
+import { sortStoreKeysForChart } from "./retail-listings";
+
 /** Pivot append-only snapshots into Recharts-friendly rows (one row per day, one numeric column per store = that day’s min price for the store). */
 export function buildMultiStoreLineSeries(
   snapshots: { recordedAt: Date; store: string; price: unknown }[]
@@ -15,7 +17,7 @@ export function buildMultiStoreLineSeries(
   const days = Array.from(dayStore.keys()).sort();
   const stores = new Set<string>();
   dayStore.forEach((m) => m.forEach((_, k) => stores.add(k)));
-  const storeKeys = Array.from(stores).sort();
+  const storeKeys = sortStoreKeysForChart(Array.from(stores));
   const points = days.map((d) => {
     const m = dayStore.get(d)!;
     const row: Record<string, string | number> = { date: d };

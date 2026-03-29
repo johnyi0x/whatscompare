@@ -1,6 +1,12 @@
+import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { recomputeProductMetrics } from "./computed-metrics";
 import { prisma } from "./prisma";
+import {
+  filterTrustedRetailListings,
+  inferItemCondition,
+  type TrustedListingInput,
+} from "./retail-listings";
 import { inferInStockFromDetails, storeKeyFromSerpName } from "./store-key";
 
 const SERP = "https://serpapi.com/search.json";
@@ -172,52 +178,71 @@ export async function syncOneProduct(productId: string): Promise<SyncOneResult> 
     return { productId, apiCalls, ok: false, error: "no stores in immersive response" };
   }
 
-  const now = new Date();
-  const snapshotRows: Prisma.PriceSnapshotCreateManyInput[] = [];
-
+  const parsed: TrustedListingInput[] = [];
   for (const st of stores) {
     const name = st.name?.trim() || "unknown";
     const store = storeKeyFromSerpName(name);
-    const price =
-      parseMoney(st.extracted_price) ?? parseMoney(st.price);
+    const price = parseMoney(st.extracted_price) ?? parseMoney(st.price);
     if (price == null) continue;
     const reg = parseMoney(st.extracted_original_price) ?? parseMoney(st.original_price);
     const inStock = inferInStockFromDetails(st.details_and_offers);
     const url = st.link?.trim() || "#";
-
-    await prisma.productStoreListing.upsert({
-      where: { productId_store: { productId: p.id, store } },
-      create: {
-        productId: p.id,
-        store,
-        storeLabel: name,
-        storeUrl: url,
-        currentPrice: new Prisma.Decimal(price.toFixed(2)),
-        regularPrice: reg != null ? new Prisma.Decimal(reg.toFixed(2)) : null,
-        rating: st.rating != null ? new Prisma.Decimal(st.rating) : null,
-        reviewCount: st.reviews ?? null,
-        inStock,
-      },
-      update: {
-        storeLabel: name,
-        storeUrl: url,
-        currentPrice: new Prisma.Decimal(price.toFixed(2)),
-        regularPrice: reg != null ? new Prisma.Decimal(reg.toFixed(2)) : null,
-        rating: st.rating != null ? new Prisma.Decimal(st.rating) : null,
-        reviewCount: st.reviews ?? null,
-        inStock,
-      },
-    });
-
-    snapshotRows.push({
-      productId: p.id,
+    const itemCondition = inferItemCondition(st.details_and_offers, name);
+    parsed.push({
       store,
-      price: new Prisma.Decimal(price.toFixed(2)),
-      regularPrice: reg != null ? new Prisma.Decimal(reg.toFixed(2)) : null,
+      storeLabel: name,
+      storeUrl: url,
+      price,
+      regularPrice: reg,
+      rating: st.rating ?? null,
+      reviewCount: st.reviews ?? null,
       inStock,
-      recordedAt: now,
+      itemCondition,
     });
   }
+
+  const trusted = filterTrustedRetailListings(parsed);
+  if (!trusted.length) {
+    await prisma.productStoreListing.deleteMany({ where: { productId: p.id } });
+    return {
+      productId,
+      apiCalls,
+      ok: false,
+      error: "no trusted listings after allowlist + condition/outlier filters",
+    };
+  }
+
+  const now = new Date();
+  const snapshotRows: Prisma.PriceSnapshotCreateManyInput[] = trusted.map((t) => ({
+    id: randomUUID(),
+    productId: p.id,
+    store: t.store,
+    price: new Prisma.Decimal(t.price.toFixed(2)),
+    regularPrice: t.regularPrice != null ? new Prisma.Decimal(t.regularPrice.toFixed(2)) : null,
+    inStock: t.inStock,
+    recordedAt: now,
+  }));
+
+  await prisma.$transaction(async (tx) => {
+    await tx.productStoreListing.deleteMany({ where: { productId: p.id } });
+    for (const t of trusted) {
+      await tx.productStoreListing.create({
+        data: {
+          id: randomUUID(),
+          productId: p.id,
+          store: t.store,
+          storeLabel: t.storeLabel,
+          storeUrl: t.storeUrl,
+          currentPrice: new Prisma.Decimal(t.price.toFixed(2)),
+          regularPrice: t.regularPrice != null ? new Prisma.Decimal(t.regularPrice.toFixed(2)) : null,
+          rating: t.rating != null ? new Prisma.Decimal(t.rating) : null,
+          reviewCount: t.reviewCount,
+          inStock: t.inStock,
+          listingCondition: t.itemCondition,
+        },
+      });
+    }
+  });
 
   if (snapshotRows.length) {
     await prisma.priceSnapshot.createMany({ data: snapshotRows });

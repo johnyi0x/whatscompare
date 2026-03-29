@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Product, ProductStoreListing } from "@prisma/client";
+import { displayLabelForStore, sortListingsAmazonFirstThenPrice } from "@/lib/retail-listings";
 import { ProductImage } from "./ProductImage";
 
 export type ProductCardModel = Product & { listings: ProductStoreListing[] };
@@ -16,13 +17,20 @@ function TrendArrow({ trend }: { trend: string | null }) {
 }
 
 export function ProductCard({ product }: { product: ProductCardModel }) {
-  const listings = [...product.listings].sort((a, b) => Number(a.currentPrice) - Number(b.currentPrice));
-  const low = listings[0];
-  const priceText = low
-    ? new Intl.NumberFormat("en-US", { style: "currency", currency: product.currency }).format(
-        Number(low.currentPrice)
-      )
-    : "Sync pending";
+  const listings = sortListingsAmazonFirstThenPrice([...product.listings]);
+  const byPrice = [...product.listings].sort((a, b) => Number(a.currentPrice) - Number(b.currentPrice));
+  const cheapest = byPrice[0];
+  const amazon = product.listings.find((l) => l.store === "amazon");
+  const primary = amazon ?? cheapest;
+  const fmt = (n: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: product.currency }).format(n);
+
+  const priceText = primary ? fmt(Number(primary.currentPrice)) : "Sync pending";
+  const cheaperElsewhere =
+    amazon &&
+    cheapest &&
+    cheapest.store !== "amazon" &&
+    Number(cheapest.currentPrice) < Number(amazon.currentPrice);
 
   const img = product.imageUrl?.startsWith("http") ? product.imageUrl : null;
 
@@ -58,9 +66,25 @@ export function ProductCard({ product }: { product: ProductCardModel }) {
         {product.brand ? <p className="text-xs text-ink-muted">{product.brand}</p> : null}
         {product.category ? <p className="text-xs text-ink-muted">{product.category}</p> : null}
         <p className="text-lg font-semibold tabular-nums text-ink">{priceText}</p>
-        {low && listings.length > 1 ? (
+        {primary ? (
           <p className="text-xs text-ink-muted">
-            From {low.storeLabel ?? low.store} · {listings.length} stores tracked
+            {amazon ? (
+              <>
+                <span className="font-medium text-accent">Amazon</span>
+                {cheaperElsewhere && cheapest ? (
+                  <>
+                    {" "}
+                    · lower at {displayLabelForStore(cheapest.store)} {fmt(Number(cheapest.currentPrice))}
+                  </>
+                ) : null}
+                {listings.length > 1 ? ` · ${listings.length} stores` : null}
+              </>
+            ) : (
+              <>
+                From {displayLabelForStore(primary.store)} · {listings.length} store
+                {listings.length !== 1 ? "s" : ""} tracked
+              </>
+            )}
           </p>
         ) : (
           <p className="text-xs text-ink-muted">Cron fills multi-store prices (not on page load).</p>

@@ -5,6 +5,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -12,8 +13,15 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { displayLabelForStore } from "@/lib/retail-listings";
 
 const LINE_PALETTE = ["#5cb88a", "#6b9e7d", "#38bdf8", "#a78bfa", "#f472b6", "#fbbf24", "#94a3b8"];
+
+const STORE_LINE_STROKE: Record<string, string> = {
+  amazon: "#5cb88a",
+  bestbuy: "#38bdf8",
+  walmart: "#a78bfa",
+};
 
 export type BarDatum = { name: string; price: number; isLow: boolean };
 
@@ -60,6 +68,10 @@ export function ProductCharts({ barData, linePoints, storeKeys }: Props) {
                 />
                 <Tooltip
                   formatter={(v: number) => [formatUsd(v), "Price"]}
+                  labelFormatter={(_, payload) => {
+                    const row = (payload as { payload?: BarDatum }[] | undefined)?.[0]?.payload;
+                    return row?.name ?? "Store";
+                  }}
                   contentStyle={{
                     borderRadius: "12px",
                     border: "1px solid rgb(148 163 184 / 0.35)",
@@ -94,8 +106,8 @@ export function ProductCharts({ barData, linePoints, storeKeys }: Props) {
                   width={56}
                 />
                 <Tooltip
-                  formatter={(v: number) => [formatUsd(v), ""]}
-                  labelFormatter={(l) => l}
+                  formatter={(v: number, name: string) => [formatUsd(v), name]}
+                  labelFormatter={(label) => `Day: ${label}`}
                   contentStyle={{
                     borderRadius: "12px",
                     border: "1px solid rgb(148 163 184 / 0.35)",
@@ -103,15 +115,20 @@ export function ProductCharts({ barData, linePoints, storeKeys }: Props) {
                     color: "var(--color-ink)",
                   }}
                 />
+                <Legend
+                  wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+                  formatter={(value) => <span className="text-ink">{value}</span>}
+                />
                 {storeKeys.map((key, i) => (
                   <Line
                     key={key}
                     type="monotone"
                     dataKey={key}
-                    name={key}
-                    stroke={LINE_PALETTE[i % LINE_PALETTE.length]}
+                    name={displayLabelForStore(key)}
+                    stroke={STORE_LINE_STROKE[key] ?? LINE_PALETTE[i % LINE_PALETTE.length]}
                     strokeWidth={2}
-                    dot={false}
+                    dot={{ r: 2, strokeWidth: 1 }}
+                    activeDot={{ r: 5, strokeWidth: 0 }}
                     connectNulls
                   />
                 ))}
