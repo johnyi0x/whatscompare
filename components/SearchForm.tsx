@@ -23,7 +23,7 @@ export function SearchForm({ initial = "", className = "" }: { initial?: string;
         name="q"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Search deals…"
+        placeholder="Search electronics…"
         className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
         aria-label="Search products"
       />

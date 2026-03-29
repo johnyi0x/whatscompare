@@ -9,10 +9,9 @@ export default function CompareStubPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="font-display text-3xl font-semibold text-ink">Cross-store compare</h1>
       <p className="text-ink-muted">
-        MVP ships Amazon-only search and deals. The database is modeled with <code className="rounded bg-surface-subtle px-1">Merchant</code>,{" "}
-        <code className="rounded bg-surface-subtle px-1">Product</code> (per-store <code className="rounded bg-surface-subtle px-1">externalId</code>), and{" "}
-        <code className="rounded bg-surface-subtle px-1">Offer</code> so we can add Best Buy (or others) and later map
-        equivalent products for side-by-side price.
+        The live catalog already stores <strong className="text-ink">multiple retailers per product</strong> (from Google
+        Shopping immersive results). This page is reserved for a future UI that matches the same physical SKU across
+        merchants using UPC/GTIN or manual grouping.
       </p>
       <p className="text-sm text-ink-muted">
         Next steps: ingest a second merchant feed, add optional <code className="rounded bg-surface-subtle px-1">ProductMatch</code> or UPC column, then

@@ -1,17 +1,12 @@
 import Link from "next/link";
 import { ProductCard } from "@/components/ProductCard";
-import { ingestedProductWhere } from "@/lib/ingested-products";
 import { prisma } from "@/lib/prisma";
 
 export default async function HomePage() {
   const featured = await prisma.product.findMany({
-    where: ingestedProductWhere,
     take: 8,
     orderBy: { updatedAt: "desc" },
-    include: {
-      merchant: true,
-      offers: { orderBy: { fetchedAt: "desc" }, take: 1 },
-    },
+    include: { listings: { orderBy: { currentPrice: "asc" } } },
   });
 
   const recentPosts = await prisma.post.findMany({
@@ -23,13 +18,14 @@ export default async function HomePage() {
   return (
     <div className="space-y-14">
       <section className="space-y-6 text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Curated Amazon deals</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Curated electronics deals</p>
         <h1 className="font-display text-4xl font-semibold tracking-tight text-ink sm:text-5xl sm:leading-tight">
-          Deals you can search—<span className="text-accent">honest</span> pricing context
+          Deals you can search—<span className="text-accent">honest</span> multi-store context
         </h1>
         <p className="mx-auto max-w-xl text-lg leading-relaxed text-ink-muted">
-          Find products we track, compare notes at a glance, and jump to Amazon with a clear affiliate disclosure—no
-          clutter, just deals worth a look.
+          We stack <strong className="text-ink">prices over time</strong> across major retailers (Amazon, Best Buy, and
+          others via Google Shopping data) so comparisons and charts improve the longer the site runs—not a one-off
+          search.
         </p>
         <div className="flex flex-wrap justify-center gap-3 pt-2">
           <Link
@@ -62,10 +58,7 @@ export default async function HomePage() {
         </div>
         {featured.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-line bg-surface-subtle px-4 py-10 text-center text-ink-muted">
-            No ingest-visible products yet. On Vercel, add <code className="text-ink">SERPAPI_API_KEY</code> under{" "}
-            <strong className="text-ink">Environment Variables → include it for “Build”</strong> (not only Production) so{" "}
-            <code className="text-ink">prisma db seed</code> can call SerpApi during deploy. Then check the build log for
-            SerpApi errors, or wait for the daily cron.
+            No products seeded. Run <code className="text-ink">prisma db seed</code> after migrate.
           </p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -85,8 +78,7 @@ export default async function HomePage() {
         </div>
         {recentPosts.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-line bg-surface-subtle px-4 py-8 text-center text-sm text-ink-muted">
-            Editorial posts with Amazon affiliate context will appear here—another way to surface referral links besides
-            the product grid.
+            Editorial posts with affiliate context will appear here.
           </p>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">
@@ -97,9 +89,7 @@ export default async function HomePage() {
                   className="block h-full rounded-2xl border border-line bg-surface p-5 shadow-sleek transition hover:border-accent/40 dark:shadow-sleek-dark"
                 >
                   <h3 className="font-display text-lg font-semibold text-ink">{post.title}</h3>
-                  {post.excerpt ? (
-                    <p className="mt-2 line-clamp-2 text-sm text-ink-muted">{post.excerpt}</p>
-                  ) : null}
+                  {post.excerpt ? <p className="mt-2 line-clamp-2 text-sm text-ink-muted">{post.excerpt}</p> : null}
                   {post.publishedAt ? (
                     <p className="mt-3 text-xs text-ink-muted">
                       {post.publishedAt.toLocaleDateString("en-US", { dateStyle: "medium" })}

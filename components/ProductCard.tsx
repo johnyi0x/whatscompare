@@ -1,62 +1,76 @@
 import Link from "next/link";
-import type { Merchant, Offer, Product } from "@prisma/client";
-import { buildAmazonProductUrl, getPartnerTagOrPlaceholder, resolveProductImageUrl } from "@/lib/amazon-affiliate";
-import { formatPriceDisclaimer } from "@/lib/format-price";
+import type { Product, ProductStoreListing } from "@prisma/client";
 import { ProductImage } from "./ProductImage";
 
-export type ProductCardModel = Product & {
-  merchant: Merchant;
-  offers: Offer[];
-};
+export type ProductCardModel = Product & { listings: ProductStoreListing[] };
+
+function TrendArrow({ trend }: { trend: string | null }) {
+  if (!trend) return null;
+  const sym = trend === "dropping" ? "↓" : trend === "rising" ? "↑" : "→";
+  const label = trend === "dropping" ? "Dropping" : trend === "rising" ? "Rising" : "Stable";
+  return (
+    <span className="text-xs font-medium text-accent" title={`Price trend: ${label}`}>
+      {sym} {label}
+    </span>
+  );
+}
 
 export function ProductCard({ product }: { product: ProductCardModel }) {
-  const offer = product.offers[0];
-  const tag = getPartnerTagOrPlaceholder();
-  const href =
-    offer?.affiliateUrl ??
-    (product.merchant.slug === "amazon"
-      ? buildAmazonProductUrl(product.externalId, { partnerTag: tag })
-      : "#");
-
-  const imgSrc = resolveProductImageUrl(product, tag);
-
-  const priceText = offer
-    ? new Intl.NumberFormat("en-US", { style: "currency", currency: offer.currency }).format(
-        Number(offer.priceAmount)
+  const listings = [...product.listings].sort((a, b) => Number(a.currentPrice) - Number(b.currentPrice));
+  const low = listings[0];
+  const priceText = low
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: product.currency }).format(
+        Number(low.currentPrice)
       )
-    : "See Amazon";
+    : "Sync pending";
+
+  const img = product.imageUrl?.startsWith("http") ? product.imageUrl : null;
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-sleek transition hover:border-accent/40 hover:shadow-lg dark:shadow-sleek-dark">
       <Link href={`/deals/${product.slug}`} className="block">
         <div className="relative aspect-square bg-surface-subtle">
-          {imgSrc ? (
+          {img ? (
             <ProductImage
-              src={imgSrc}
+              src={img}
               alt={product.title}
               className="absolute inset-0 h-full w-full object-contain p-3 transition duration-300 group-hover:scale-[1.02]"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-sm text-ink-muted">No image</div>
+            <div className="flex h-full items-center justify-center px-4 text-center text-sm text-ink-muted">
+              Image after first price sync
+            </div>
           )}
         </div>
       </Link>
       <div className="flex flex-1 flex-col gap-2 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          {product.dealScorePercent != null && Number(product.dealScorePercent) > 0 ? (
+            <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent">
+              {Number(product.dealScorePercent).toFixed(0)}% vs avg
+            </span>
+          ) : null}
+          <TrendArrow trend={product.trendDirection} />
+        </div>
         <Link href={`/deals/${product.slug}`} className="font-medium text-ink transition group-hover:text-accent">
           <h2 className="line-clamp-2 text-base leading-snug">{product.title}</h2>
         </Link>
         {product.brand ? <p className="text-xs text-ink-muted">{product.brand}</p> : null}
-        {offer?.dealLabel ? <p className="text-xs font-medium text-accent">{offer.dealLabel}</p> : null}
+        {product.category ? <p className="text-xs text-ink-muted">{product.category}</p> : null}
         <p className="text-lg font-semibold tabular-nums text-ink">{priceText}</p>
-        <p className="text-xs leading-relaxed text-ink-muted">{formatPriceDisclaimer(offer)}</p>
-        <a
-          href={href}
-          target="_blank"
-          rel="sponsored noopener noreferrer"
+        {low && listings.length > 1 ? (
+          <p className="text-xs text-ink-muted">
+            From {low.storeLabel ?? low.store} · {listings.length} stores tracked
+          </p>
+        ) : (
+          <p className="text-xs text-ink-muted">Cron fills multi-store prices (not on page load).</p>
+        )}
+        <Link
+          href={`/deals/${product.slug}`}
           className="mt-auto inline-flex justify-center rounded-lg bg-ink px-3 py-2.5 text-center text-sm font-medium text-white transition hover:opacity-90 dark:bg-slate-100 dark:text-slate-900"
         >
-          View on Amazon
-        </a>
+          Compare stores
+        </Link>
       </div>
     </article>
   );

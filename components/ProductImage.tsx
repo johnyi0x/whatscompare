@@ -1,9 +1,7 @@
 "use client";
-/* eslint-disable @next/next/no-img-element -- /api/amazon-img proxy; next/image not ideal for streamed JPEG */
+/* eslint-disable @next/next/no-img-element -- remote retailer thumbnails; Next/Image optional */
 
-/**
- * Plain img for /api/amazon-img — Next/Image is a poor fit for streamed proxy responses.
- */
+/** Plain img for HTTPS product art from sync (e.g. Google Shopping thumbnails). */
 export function ProductImage({
   src,
   alt,

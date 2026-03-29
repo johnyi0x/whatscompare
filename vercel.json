@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/sync-amazon",
+      "path": "/api/cron/sync-catalog",
       "schedule": "0 9 * * *"
     }
   ]

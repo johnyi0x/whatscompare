@@ -8,117 +8,72 @@ export default function AboutPage() {
       <header className="space-y-2">
         <h1 className="font-display text-4xl font-semibold text-ink">How whatscompare works</h1>
         <p className="text-ink-muted">
-          Product data flow, APIs, and intervals—framed like a market data stack (similar idea to indexing exchange
-          feeds), but for retail offers.
+          Electronics-first catalog: we <strong className="text-ink">stack price snapshots over time</strong> across
+          retailers surfaced by Google Shopping, then compute deal scores and charts—value compounds as the cron runs.
         </p>
       </header>
 
       <section className="space-y-3 text-ink-muted">
-        <h2 className="font-display text-xl font-semibold text-ink">There is no magic “deals API” in the MVP</h2>
-        <p>
-          Amazon does not give a public “stream all deals” WebSocket like a crypto exchange. What you have is:{" "}
-          <strong className="text-ink">your Postgres database</strong> as the source of truth, plus optional{" "}
-          <strong className="text-ink">Amazon PA-API / Creators API</strong> when your account meets Amazon’s eligibility
-          rules (often including qualifying sales). Optionally, a <strong className="text-ink">paid third-party API</strong>{" "}
-          (SerpApi) can refresh catalog snapshots from the server only—never on every page view. The public site does not
-          scrape Amazon HTML (that violates their terms and breaks often).
-        </p>
-      </section>
-
-      <section className="space-y-3 text-ink-muted">
-        <h2 className="font-display text-xl font-semibold text-ink">What we store (schema mental model)</h2>
+        <h2 className="font-display text-xl font-semibold text-ink">Data model</h2>
         <ul className="list-inside list-disc space-y-2">
           <li>
-            <strong className="text-ink">Merchant</strong> — e.g. <code className="text-ink">amazon</code> (later: Best Buy,
-            etc.).
+            <strong className="text-ink">Product</strong> — curated SKU (title, category, brand, tier, shopping query).
+            The immersive <code className="text-ink">page_token</code> is stored after the first successful discovery.
           </li>
           <li>
-            <strong className="text-ink">Product</strong> — one row per catalog item at that merchant: ASIN, title, brand,
-            slug, optional description. This is like a perpetual “instrument id” in trading.
+            <strong className="text-ink">ProductStoreListing</strong> — latest price, regular price, rating, link per
+            store (Amazon, Best Buy, etc.).
           </li>
           <li>
-            <strong className="text-ink">Offer</strong> — a <em>snapshot</em>: price, currency, list price, deal label,
-            <code className="text-ink">fetchedAt</code>, <code className="text-ink">source</code> (
-            <code className="text-ink">seed</code> | <code className="text-ink">pa_api</code> |{" "}
-            <code className="text-ink">serpapi</code> | manual). New snapshots append;
-            the UI usually shows the latest.
-          </li>
-          <li>
-            <strong className="text-ink">PriceHistory</strong> — optional time series of past snapshots (good for “was $X”
-            charts—like OHLC but simpler).
-          </li>
-          <li>
-            <strong className="text-ink">Post / PostProduct</strong> — editorial roundups linking many products.
+            <strong className="text-ink">PriceSnapshot</strong> — <em>append-only</em> row per store on every refresh.
+            Metrics and charts read from this history.
           </li>
         </ul>
       </section>
 
       <section className="space-y-3 text-ink-muted">
-        <h2 className="font-display text-xl font-semibold text-ink">How data gets in today</h2>
-        <ol className="list-inside list-decimal space-y-2">
-          <li>
-            <strong className="text-ink">Seed (every production build):</strong>{" "}
-            <code className="text-ink">prisma db seed</code> ensures the Amazon merchant exists. Optional{" "}
-            <code className="text-ink">INGEST_ASINS</code> creates <em>stub</em> rows (no listing until SerpApi or PA-API
-            succeeds). The homepage and search only show products after a successful API ingest.
-          </li>
-          <li>
-            <strong className="text-ink">Images:</strong> product cards use <strong className="text-ink">HTTPS image URLs</strong>{" "}
-            stored after SerpApi or PA-API ingest—not live HTML scraping.
-          </li>
-          <li>
-            <strong className="text-ink">Deal blog posts:</strong> markdown in <code className="text-ink">Post</code> rows;
-            another surface for affiliate context besides the product grid.
-          </li>
-          <li>
-            <strong className="text-ink">PA-API / Creators path (optional):</strong> the same daily cron can call Amazon’s
-            API when <code className="text-ink">PAAPI_*</code> is set and your account is eligible. Amazon is moving toward{" "}
-            <a
-              className="text-accent underline"
-              href="https://affiliate-program.amazon.com/creatorsapi/docs/en-us/introduction"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              Creators API
-            </a>
-            ; confirm current rules in their docs.
-          </li>
-          <li>
-            <strong className="text-ink">SerpApi refresh (optional, paid 3rd party):</strong> if you are not yet eligible for
-            PA-API, set <code className="text-ink">SERPAPI_API_KEY</code>. On Vercel, expose that variable to{" "}
-            <strong className="text-ink">Build</strong> as well as Production so deploy-time seed can bootstrap. The cron
-            refreshes only a <em>small capped batch</em> of stale Amazon products per run, writes{" "}
-            <code className="text-ink">source=serpapi</code> when a price is available, and sets{" "}
-            <code className="text-ink">serpapiSyncedAt</code> so pages never call SerpApi per view. Not an official Amazon
-            feed—verify on Amazon before purchase.
-          </li>
-        </ol>
-      </section>
-
-      <section className="space-y-3 text-ink-muted">
-        <h2 className="font-display text-xl font-semibold text-ink">Crypto analogy (Hyperliquid-style mindset)</h2>
+        <h2 className="font-display text-xl font-semibold text-ink">SerpApi (paid) — how we stay efficient</h2>
         <p>
-          Think of <strong className="text-ink">Product</strong> as the contract symbol, <strong className="text-ink">Offer</strong>{" "}
-          as the last trade print, and <strong className="text-ink">PriceHistory</strong> as your stored ticks. Ingest job =
-          cron hitting PA-API (or future merchant feeds). Normalization = mapping each feed into the same columns. Downstream
-          = search ranking, deal badges, cross-retailer compare (phase 2). The polish you want is mostly: better ingest
-          frequency, dedupe, and alerting when price moves X%.
+          We use <code className="text-ink">engine=google_shopping</code> to discover a product’s immersive token, then{" "}
+          <code className="text-ink">engine=google_immersive_product</code> for multi-store prices. Identical parameters
+          can hit SerpApi’s <strong className="text-ink">1h cache</strong> (cached searches are free and do not count the
+          same way as fresh fetches—see SerpApi pricing docs).
+        </p>
+        <p>
+          <strong className="text-ink">No API calls on page views.</strong> Only{" "}
+          <code className="text-ink">GET /api/cron/sync-catalog</code> (Vercel Cron) runs ingest, capped by{" "}
+          <code className="text-ink">SERPAPI_MAX_CALLS_PER_RUN</code> (default 8). Tier 1 / 2 / 3 controls how often a
+          product is <em>eligible</em> for refresh (3h / 24h / 72h since last run); the cap spreads load across the month.
         </p>
       </section>
 
       <section className="space-y-3 text-ink-muted">
-        <h2 className="font-display text-xl font-semibold text-ink">Affiliate links</h2>
-        <p>
-          Links are <code className="text-ink">https://www.amazon.com/dp/{"{ASIN}"}?tag=…&linkCode=ll1&language=en_US</code>.
-          Your <code className="text-ink">AMAZON_PARTNER_TAG</code> must match SiteStripe exactly.
-        </p>
+        <h2 className="font-display text-xl font-semibold text-ink">Computed metrics (after each refresh)</h2>
+        <ul className="list-inside list-disc space-y-2">
+          <li>
+            <strong className="text-ink">Deal score</strong> — % below ~90d average of daily minimum prices.
+          </li>
+          <li>
+            <strong className="text-ink">Trend</strong> — coarse rising / dropping / stable from recent daily mins.
+          </li>
+          <li>
+            <strong className="text-ink">Cheapest store</strong> — which retailer most often had the low price across
+            snapshots.
+          </li>
+          <li>
+            <strong className="text-ink">Volatility</strong> — standard deviation of daily mins (higher = more swingy).
+          </li>
+          <li>
+            <strong className="text-ink">Deal confidence</strong> — heuristic from how rare the current low is vs history.
+          </li>
+        </ul>
       </section>
 
       <section className="space-y-3 text-ink-muted">
-        <h2 className="font-display text-xl font-semibold text-ink">Tech stack</h2>
+        <h2 className="font-display text-xl font-semibold text-ink">Product page</h2>
         <p>
-          Next.js (App Router) on Vercel, Prisma + Postgres, full-text-ish search with pg_trgm. Same deployment pattern as
-          other small data-backed apps.
+          Horizontal bar chart (current prices), multi-line history chart (daily low per store), sorted buy links. Wrap
+          URLs with your affiliate IDs where your programs allow.
         </p>
       </section>
 
