@@ -1,4 +1,4 @@
-/** Curated electronics catalog: ~36 SKUs. SerpApi google_shopping `q` + optional title match hint. */
+/** Curated electronics catalog: ~36 SKUs. `shoppingQuery` + optional `shoppingMatchHint` for Claude enrichment. */
 export type ElectronicsSeedRow = {
   slug: string;
   title: string;

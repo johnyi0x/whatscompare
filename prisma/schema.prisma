@@ -8,7 +8,7 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-/// Electronics SKU tracked via SerpApi Google Shopping → immersive product (multi-store prices).
+/// Electronics SKU: static fields enriched once via Claude + web search; prices refreshed on cron.
 model Product {
   id        String  @id @default(cuid())
   slug      String  @unique
@@ -16,15 +16,20 @@ model Product {
   imageUrl  String?
   category  String?
   brand     String?
-  /// 1 = hot (frequent refresh), 2 = active, 3 = cold
+  /// 1 = hot, 2 = active, 3 = cold (used for ordering refreshes)
   tier      Int     @default(3)
 
-  /// google_shopping search query to discover / refresh immersive token (use cached requests when possible).
+  /// Primary research string for Claude (product + key specs).
   shoppingQuery     String
-  /// Prefer a shopping result whose title contains this (case-insensitive).
   shoppingMatchHint String?
-  googleProductId   String?
-  immersivePageToken String? @db.Text
+
+  /// Flat specs for comparison charts (filled once at enrichment).
+  specsJson            Json?
+  enrichmentCompletedAt DateTime?
+
+  /// Canonical PDP URLs (set at enrichment; price cron reads these even before listings exist).
+  amazonProductUrl   String? @db.Text
+  bestBuyProductUrl  String? @db.Text
 
   lastRefreshedAt DateTime?
 
@@ -47,9 +52,9 @@ model Product {
 
   @@index([brand])
   @@index([tier, lastRefreshedAt])
+  @@index([enrichmentCompletedAt])
 }
 
-/// Latest snapshot per store (updated on each successful refresh).
 model ProductStoreListing {
   id        String  @id @default(cuid())
   productId String
@@ -64,7 +69,6 @@ model ProductStoreListing {
   rating       Decimal? @db.Decimal(4, 2)
   reviewCount  Int?
   inStock      Boolean  @default(true)
-  /// new | used | refurbished | unknown — from SerpApi offer text; used/refurb not shown after filter.
   listingCondition String?
 
   createdAt DateTime @default(now())
@@ -74,7 +78,6 @@ model ProductStoreListing {
   @@index([productId])
 }
 
-/// Append-only price history for metrics & charts.
 model PriceSnapshot {
   id        String  @id @default(cuid())
   productId String
@@ -109,4 +112,12 @@ model SyncJobLog {
   itemCount  Int?
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
+}
+
+/// UTC calendar day — estimated Claude spend (tokens + web searches) for budget cap.
+model ClaudeDailyUsage {
+  id           String   @id @default(cuid())
+  day          DateTime @unique @db.Date
+  estimatedUsd Decimal  @default(0) @db.Decimal(14, 6)
+  updatedAt    DateTime @updatedAt
 }

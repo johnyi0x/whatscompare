@@ -4,8 +4,8 @@ import { ELECTRONICS_SEED } from "./electronics-seed-data";
 const prisma = new PrismaClient();
 
 /**
- * Electronics-only catalog. Prices come from SerpApi (Google Shopping → Immersive) via cron, not from seed.
- * Set RESET_CATALOG_ON_SEED=1 once to wipe products + listings + snapshots (posts kept).
+ * Electronics-only catalog. Static rows here; titles, images, Amazon/Best Buy PDP URLs, specs, and prices are filled by the Claude cron (`/api/cron/sync-catalog`).
+ * Optional `RESET_CATALOG_ON_SEED=1` wipes products + listings + snapshots (posts kept).
  */
 async function main() {
   if (process.env.RESET_CATALOG_ON_SEED === "1") {

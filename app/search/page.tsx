@@ -21,7 +21,7 @@ export default async function SearchPage({ searchParams }: Props) {
         <p className="mt-2 text-ink-muted">
           {q
             ? `Results for “${q}” — titles, brands, and categories (trigram + similarity).`
-            : "All tracked SKUs. Use the header search to filter. Prices fill in after scheduled SerpApi sync."}
+            : "All tracked SKUs. Use the header search to filter. Images and prices fill in after the daily Claude cron."}
         </p>
       </div>
 

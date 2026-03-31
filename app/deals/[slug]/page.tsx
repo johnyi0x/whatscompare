@@ -52,6 +52,12 @@ export default async function DealDetailPage({ params }: Props) {
 
   const img = product.imageUrl?.startsWith("http") ? product.imageUrl : null;
 
+  const specs =
+    product.specsJson && typeof product.specsJson === "object" && !Array.isArray(product.specsJson)
+      ? (product.specsJson as Record<string, string>)
+      : null;
+  const specEntries = specs ? Object.entries(specs).filter(([, v]) => typeof v === "string" && v.trim()) : [];
+
   return (
     <article className="space-y-10">
       <nav className="text-sm text-ink-muted">
@@ -112,8 +118,8 @@ export default async function DealDetailPage({ params }: Props) {
           <div className="rounded-xl border border-line bg-surface p-5 shadow-sleek dark:shadow-sleek-dark">
             <h2 className="font-display text-lg font-semibold text-ink">Where to buy</h2>
             <p className="mt-1 text-sm text-ink-muted">
-              Live links to Amazon, Best Buy, and Walmart. We compare full purchase prices from these retailers when
-              available.
+              Links to Amazon and Best Buy. We store full purchase prices (not monthly financing) when we can read them
+              from the product page.
             </p>
             <ul className="mt-4 space-y-2">
               {listingsSorted.map((l) => (
@@ -153,6 +159,23 @@ export default async function DealDetailPage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {specEntries.length > 0 ? (
+        <section className="space-y-3">
+          <h3 className="font-display text-lg font-semibold text-ink">Specs</h3>
+          <dl className="grid gap-2 sm:grid-cols-2">
+            {specEntries.map(([k, v]) => (
+              <div
+                key={k}
+                className="flex flex-col rounded-xl border border-line bg-surface/50 px-3 py-2 dark:bg-surface-subtle/40"
+              >
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{k}</dt>
+                <dd className="text-sm text-ink">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
 
       <ProductCharts barData={barData} linePoints={points} storeKeys={storeKeys} />
 

@@ -1,7 +1,7 @@
 /**
  * Only these retailers are persisted and shown (major storefronts; aligns with affiliate focus).
  */
-export const ALLOWED_RETAIL_KEYS = ["amazon", "bestbuy", "walmart"] as const;
+export const ALLOWED_RETAIL_KEYS = ["amazon", "bestbuy"] as const;
 export type AllowedRetailKey = (typeof ALLOWED_RETAIL_KEYS)[number];
 
 export function isAllowedRetailKey(store: string): store is AllowedRetailKey {
@@ -20,11 +20,10 @@ function tryHostname(link: string): string {
 const OFFICIAL_HOST: Record<AllowedRetailKey, RegExp> = {
   amazon: /^(.+\.)?amazon\.(com|co\.uk|ca|de|fr|it|es|in|com\.au|com\.mx|nl|se|pl|eg|sa|ae|tr|sg)$/,
   bestbuy: /\.bestbuy\.com$/,
-  walmart: /^(.+\.)?walmart\.com$/,
 };
 
 /**
- * Map SerpApi seller line + product URL to exactly one allowed key, or null (row is ignored).
+ * Map seller label + product URL to exactly one allowed key, or null (row is ignored).
  * Never slugify unknown sellers — that let "Visible", "Verizon", etc. into the DB.
  */
 export function canonicalAllowedRetailKey(name: string, link?: string): AllowedRetailKey | null {
@@ -36,9 +35,6 @@ export function canonicalAllowedRetailKey(name: string, link?: string): AllowedR
 
   if (host && OFFICIAL_HOST.bestbuy.test(host)) return "bestbuy";
   if (/\bbest\s*buy\b/.test(n) || /\bbestbuy\b/.test(n)) return "bestbuy";
-
-  if (host && OFFICIAL_HOST.walmart.test(host)) return "walmart";
-  if (/\bwalmart\b/.test(n) || /\bwal-mart\b/.test(n)) return "walmart";
 
   return null;
 }
@@ -100,8 +96,6 @@ export function displayLabelForStore(store: string): string {
       return "Amazon";
     case "bestbuy":
       return "Best Buy";
-    case "walmart":
-      return "Walmart";
     default:
       return store;
   }
@@ -118,16 +112,16 @@ export function sortListingsAmazonFirstThenPrice<
   return [...amazon, ...rest];
 }
 
-/** Chart series order: Amazon → Best Buy → Walmart (only keys present). */
+/** Chart series order: Amazon → Best Buy (only keys present). */
 export function sortStoreKeysForChart(keys: string[]): string[] {
-  const order: AllowedRetailKey[] = ["amazon", "bestbuy", "walmart"];
+  const order: AllowedRetailKey[] = ["amazon", "bestbuy"];
   const set = new Set(keys);
   const head = order.filter((k) => set.has(k));
   const tail = keys.filter((k) => !order.includes(k as AllowedRetailKey)).sort();
   return [...head, ...tail];
 }
 
-/** Infer condition from SerpApi immersive `details_and_offers` + seller line. */
+/** Infer condition from offer/detail text + seller line. */
 export function inferItemCondition(details?: string[], storeLabel?: string): ItemCondition {
   const text = [...(details ?? []), storeLabel ?? ""].join(" ").toLowerCase();
   if (

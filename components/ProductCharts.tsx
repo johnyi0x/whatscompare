@@ -20,7 +20,6 @@ const LINE_PALETTE = ["#5cb88a", "#6b9e7d", "#38bdf8", "#a78bfa", "#f472b6", "#f
 const STORE_LINE_STROKE: Record<string, string> = {
   amazon: "#5cb88a",
   bestbuy: "#38bdf8",
-  walmart: "#a78bfa",
 };
 
 export type BarDatum = { name: string; price: number; isLow: boolean };

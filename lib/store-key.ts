@@ -3,7 +3,6 @@ export function storeKeyFromSerpName(name: string): string {
   const n = name.toLowerCase();
   if (n.includes("amazon")) return "amazon";
   if (n.includes("best buy") || n.includes("bestbuy")) return "bestbuy";
-  if (n.includes("walmart")) return "walmart";
   if (n.includes("target")) return "target";
   if (n.includes("newegg")) return "newegg";
   if (n.includes("b&h") || n.includes("b and h")) return "bhphoto";

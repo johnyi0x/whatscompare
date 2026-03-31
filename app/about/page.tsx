@@ -9,7 +9,7 @@ export default function AboutPage() {
         <h1 className="font-display text-4xl font-semibold text-ink">How whatscompare works</h1>
         <p className="text-ink-muted">
           Electronics-first catalog: we <strong className="text-ink">stack price snapshots over time</strong> across
-          retailers surfaced by Google Shopping, then compute deal scores and charts—value compounds as the cron runs.
+          Amazon and Best Buy, then compute deal scores and charts—value compounds as the daily cron runs.
         </p>
       </header>
 
@@ -17,33 +17,42 @@ export default function AboutPage() {
         <h2 className="font-display text-xl font-semibold text-ink">Data model</h2>
         <ul className="list-inside list-disc space-y-2">
           <li>
-            <strong className="text-ink">Product</strong> — curated SKU (title, category, brand, tier, shopping query).
-            The immersive <code className="text-ink">page_token</code> is stored after the first successful discovery.
+            <strong className="text-ink">Product</strong> — curated SKU (seed title, category, brand, shopping query).
+            After enrichment: canonical Amazon/Best Buy URLs, image, optional specs JSON, and{" "}
+            <code className="text-ink">enrichmentCompletedAt</code>.
           </li>
           <li>
-            <strong className="text-ink">ProductStoreListing</strong> — latest price, regular price, rating, link per
-            store (Amazon, Best Buy, etc.).
+            <strong className="text-ink">ProductStoreListing</strong> — latest price, regular price, link per store.
           </li>
           <li>
-            <strong className="text-ink">PriceSnapshot</strong> — <em>append-only</em> row per store on every refresh.
+            <strong className="text-ink">PriceSnapshot</strong> — <em>append-only</em> row per store on each refresh.
             Metrics and charts read from this history.
+          </li>
+          <li>
+            <strong className="text-ink">ClaudeDailyUsage</strong> — estimated Claude spend per UTC calendar day for the
+            configured budget cap.
           </li>
         </ul>
       </section>
 
       <section className="space-y-3 text-ink-muted">
-        <h2 className="font-display text-xl font-semibold text-ink">SerpApi (paid) — how we stay efficient</h2>
+        <h2 className="font-display text-xl font-semibold text-ink">Claude API — how we stay efficient</h2>
         <p>
-          We use <code className="text-ink">engine=google_shopping</code> to discover a product’s immersive token, then{" "}
-          <code className="text-ink">engine=google_immersive_product</code> for multi-store prices. Identical parameters
-          can hit SerpApi’s <strong className="text-ink">1h cache</strong> (cached searches are free and do not count the
-          same way as fresh fetches—see SerpApi pricing docs).
+          <strong className="text-ink">Enrichment (once per SKU):</strong> web search finds the correct PDPs, title, image,
+          and a small specs object. That step incurs <strong className="text-ink">web search surcharges</strong> (per
+          Anthropic pricing) plus tokens.
+        </p>
+        <p>
+          <strong className="text-ink">Daily prices:</strong> we pass your saved Amazon/Best Buy URLs into{" "}
+          <strong className="text-ink">web fetch</strong> so Claude reads those pages directly—extra tool charges are
+          token-only for fetch today. Heavy JS sites may still be hard to read; later you can plug in Amazon / Best Buy
+          official APIs in <code className="text-ink">lib/price-sources/official-prices.ts</code> (free within their
+          quotas) and the cron will prefer those numbers when implemented.
         </p>
         <p>
           <strong className="text-ink">No API calls on page views.</strong> Only{" "}
-          <code className="text-ink">GET /api/cron/sync-catalog</code> (Vercel Cron) runs ingest, capped by{" "}
-          <code className="text-ink">SERPAPI_MAX_CALLS_PER_RUN</code> (default 8). Tier 1 / 2 / 3 controls how often a
-          product is <em>eligible</em> for refresh (3h / 24h / 72h since last run); the cap spreads load across the month.
+          <code className="text-ink">GET /api/cron/sync-catalog</code> (Vercel Cron) runs ingest, stopped by{" "}
+          <code className="text-ink">CLAUDE_DAILY_BUDGET_USD</code> (default $1/day).
         </p>
       </section>
 
@@ -72,14 +81,15 @@ export default function AboutPage() {
       <section className="space-y-3 text-ink-muted">
         <h2 className="font-display text-xl font-semibold text-ink">Product page</h2>
         <p>
-          Horizontal bar chart (current prices), multi-line history chart (daily low per store), sorted buy links. Wrap
-          URLs with your affiliate IDs where your programs allow.
+          Horizontal bar chart (current prices), multi-line history chart (daily low per store), specs grid when
+          enrichment returned structured fields, sorted buy links. Wrap URLs with your affiliate IDs where your programs
+          allow.
         </p>
       </section>
 
       <p>
-        <Link href="/" className="font-medium text-accent hover:underline">
-          ← Back home
+        <Link href="/search" className="font-medium text-accent hover:underline">
+          Browse the catalog
         </Link>
       </p>
     </article>
