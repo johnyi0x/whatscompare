@@ -139,7 +139,7 @@ export async function enrichOneProduct(productId: string): Promise<{ estimatedUs
   if (!p) return { estimatedUsd: 0, ok: false, error: "not_found" };
   if (p.enrichmentCompletedAt) return { estimatedUsd: 0, ok: true };
 
-  const maxSearch = Math.min(8, Math.max(1, Number(process.env.CLAUDE_ENRICH_MAX_WEB_SEARCHES ?? 5)));
+  const maxSearch = Math.min(8, Math.max(1, Number(process.env.CLAUDE_ENRICH_MAX_WEB_SEARCHES ?? 3)));
 
   const system =
     "Output one JSON object only. Keys: title,imageUrl,amazonUrl,bestBuyUrl,specs,amazonPrice,bestBuyPrice,currency. specs: ≤15 string fields. amazonUrl: https amazon.com /dp/ or /gp/product/. bestBuyUrl: https bestbuy.com/site/. Prices: USD number new buy box or null. No markdown or explanation.";
@@ -337,7 +337,7 @@ async function refreshPricesForBatch(
           {
             type: "web_fetch_20250910",
             name: "web_fetch",
-            max_uses: Math.min(20, fetchCount + 2),
+            max_uses: Math.min(60, fetchCount + 4),
             max_content_tokens: maxContent,
           },
         ],
@@ -488,34 +488,33 @@ export async function runClaudeCatalogCron(): Promise<{
   errors: string[];
 }> {
   const day = utcCalendarDay();
-  let spent = await getClaudeSpendUsd(day);
   const budget = dailyBudgetUsd();
+  /** Stop when this little budget remains (avoid starting a call with ~zero headroom). */
+  const stopRemaining = Math.max(
+    0,
+    Math.min(budget * 0.02, Number(process.env.CLAUDE_BUDGET_STOP_REMAINING_USD ?? 0.02)),
+  );
   const errors: string[] = [];
   let enriched = 0;
   let priceBatches = 0;
   let productsPriceTouched = 0;
+  let operations = 0;
+  const maxOps = Math.min(500, Math.max(20, Number(process.env.CLAUDE_CRON_MAX_OPERATIONS ?? 200)));
 
-  const enrichReserve = Math.max(0.02, Number(process.env.CLAUDE_ENRICH_BUDGET_RESERVE_USD ?? 0.12));
   const batchSize = Math.min(
-    8,
-    Math.max(1, Math.floor(Number(process.env.CLAUDE_PRICE_BATCH_SIZE ?? 4))),
+    14,
+    Math.max(2, Math.floor(Number(process.env.CLAUDE_PRICE_BATCH_SIZE ?? 10))),
   );
 
-  const pending = await prisma.product.findMany({
-    where: { enrichmentCompletedAt: null },
-    orderBy: { createdAt: "asc" },
-  });
-
-  for (const p of pending) {
-    if (spent >= budget - 0.001) break;
-    if (spent + enrichReserve > budget) break;
-    const r = await enrichOneProduct(p.id);
-    spent += r.estimatedUsd;
-    await recordClaudeSpendUsd(day, r.estimatedUsd);
-    if (r.ok) enriched += 1;
-    else errors.push(`${p.slug}:enrich:${r.error ?? "fail"}`);
+  async function spentToday(): Promise<number> {
+    return getClaudeSpendUsd(day);
   }
 
+  async function budgetLeft(): Promise<number> {
+    return Math.max(0, budget - (await spentToday()));
+  }
+
+  // 1) Price refreshes first: web_fetch is usually much cheaper per SKU than enrichment (web search $/req).
   const enrichedProducts = await prisma.product.findMany({
     where: { enrichmentCompletedAt: { not: null } },
     include: { listings: true },
@@ -530,14 +529,14 @@ export async function runClaudeCatalogCron(): Promise<{
   });
 
   for (;;) {
-    if (spent >= budget - 0.001) break;
+    if (operations >= maxOps) break;
+    if ((await budgetLeft()) <= stopRemaining) break;
+
     const slice = enrichedProducts.slice(0, batchSize);
     enrichedProducts.splice(0, batchSize);
     if (!slice.length) break;
 
-    const batchReserve = Math.max(0.03, Number(process.env.CLAUDE_PRICE_BATCH_RESERVE_USD ?? 0.06) * batchSize);
-    if (spent + batchReserve > budget) break;
-
+    operations += 1;
     const r = await refreshPricesForBatch(
       slice.map((p) => ({
         id: p.id,
@@ -547,12 +546,36 @@ export async function runClaudeCatalogCron(): Promise<{
         listings: p.listings.map((l) => ({ store: l.store, storeUrl: l.storeUrl })),
       })),
     );
-    spent += r.estimatedUsd;
     await recordClaudeSpendUsd(day, r.estimatedUsd);
     priceBatches += 1;
     if (r.ok) productsPriceTouched += slice.length;
     else errors.push(`batch:${r.error ?? "fail"}`);
   }
 
-  return { enriched, priceBatches, productsPriceTouched, estimatedUsd: spent, errors };
+  // 2) Enrichment for SKUs not yet complete (web search — use remaining budget).
+  const pending = await prisma.product.findMany({
+    where: { enrichmentCompletedAt: null },
+    orderBy: { createdAt: "asc" },
+  });
+
+  for (const p of pending) {
+    if (operations >= maxOps) break;
+    if ((await budgetLeft()) <= stopRemaining) break;
+
+    operations += 1;
+    const r = await enrichOneProduct(p.id);
+    await recordClaudeSpendUsd(day, r.estimatedUsd);
+    if (r.ok) enriched += 1;
+    else errors.push(`${p.slug}:enrich:${r.error ?? "fail"}`);
+  }
+
+  const finalSpent = await spentToday();
+
+  return {
+    enriched,
+    priceBatches,
+    productsPriceTouched,
+    estimatedUsd: finalSpent,
+    errors,
+  };
 }
