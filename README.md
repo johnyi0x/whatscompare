@@ -25,11 +25,15 @@ Tune `CLAUDE_INPUT_USD_PER_MT` / `CLAUDE_OUTPUT_USD_PER_MT` to the model you set
 
 ## Migrate + seed
 
+**Vercel:** `npm run build` runs `prisma generate`, `prisma migrate deploy`, and `next build` only (no seed), so installs stay reliable. After the first successful deploy—or any time the catalog is empty—seed from a machine with `DATABASE_URL` (and `DIRECT_URL` if needed):
+
 ```bash
 npm install
 npx prisma migrate deploy
 npm run db:seed
 ```
+
+Locally the same commands apply.
 
 Seed loads **36** curated electronics SKUs (`prisma/electronics-seed-data.ts`). Enrichment and prices appear after the cron runs.
 
